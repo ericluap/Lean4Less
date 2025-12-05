@@ -124,19 +124,38 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
   let majorIdx := info.getMajorIdx
   let some major' := recArgs[majorIdx]? | return none
   let major := major'.toPExpr
+  /- We apply `whnf` to `major` to get `majorWhnf`
+    `majorEqmajorWhnf?` is a proof that `major` is equal to `majorWhnf`
+  -/
   let (majorWhnf, majorEqmajorWhnf?) ← if info.k then pure (← meth.whnfPure 0 major, none) else meth.whnf 110 major
+  /- Apply another reduction if `info.k` in order to get `majorKWhnf`
+    `majorWhnfEqmajorKWhnf?` is a proof that `majorWhnf` is equal to `majorKWhnf`
+  -/
   let (majorKWhnf, majorWhnfEqmajorKWhnf?) ← if info.k && not cheapK then toCtorWhenK env meth info majorWhnf else pure (majorWhnf, none)
+  /- Combine the proofs `majorEqmajorWhnf?` and `majorWhnfEqmajorKWnf?` into a single one.
+    `majorEqmajorKWhnf?` is a proof that `major` is equal to `majorKWhnf`
+  -/
   let majorEqmajorKWhnf? ← meth.appHEqTrans? major majorWhnf majorKWhnf majorEqmajorWhnf? majorWhnfEqmajorKWhnf?
+  /- If `majorKWhnf` is a literal or structure, do some extra processing to get `majorMaybeCtor`
+    `majorKWhnfEqMajorMaybeCtor?` is a proof that `majorKWhnf` is equal to `majorMaybeCtor`
+  -/
   let (majorMaybeCtor, majorKWhnfEqMajorMaybeCtor?) ← match majorKWhnf.toExpr with
     | .lit l => pure (l.toConstructor.toPExpr, none)
     | _ => toCtorWhenStruct env meth info.getMajorInduct majorKWhnf
+  /- Combine the proofs `majorEqmajorKWhnf?` and `majorKWhnfEqMajorMaybeCtor?` into a single one.
+    `majorEqMajorMaybeCtor?` is a proof that `major` is equal to `majorMaybeCtor`
+  -/
   let majorEqMajorMaybeCtor? ← meth.appHEqTrans? major majorKWhnf majorMaybeCtor majorEqmajorKWhnf? majorKWhnfEqMajorMaybeCtor?
-  -- (majorIdx, majorEqMajorMaybeCtor?)
+
   let some rule := getRecRuleFor info majorMaybeCtor | return none
   let majorArgs := majorMaybeCtor.toExpr.getAppArgs
   if rule.nfields > majorArgs.size then return none
   if ls.length != info.levelParams.length then return none
   let mut rhs := rule.rhs.instantiateLevelParams info.levelParams ls
+
+  /- Finds the first subexpression of `t'` that is a repeated application of
+    the inductive type.
+  -/
   let getNestedType (t' : PExpr) := do
     let t? := t'.toExpr.find? fun
         | e@(.app ..) =>
@@ -149,6 +168,14 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
         | _ => false
     pure t?.get!
 
+  /-
+    `argsEqs?` is an array that stores the proof that the `i`th argument
+    of `major` is equal to the `i`th argument of `majorMaybeCtor`.
+
+    Although we have a proof that `major` is equal to `majorMaybeCtor`,
+    we need proofs that their corresponding arguments are equal in order to use
+    those arguments separately.
+  -/
   let type ← getNestedType $ ← meth.whnfPure 111 $ ← meth.inferTypePure 112 major
   let newType ← getNestedType $ ← meth.whnfPure 112 (← meth.inferTypePure 113 majorMaybeCtor)
   let typeArgs := type.getAppArgs
@@ -159,14 +186,36 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
     let (true, p?) ← meth.isDefEq 136 arg newArg | panic! ""
     argEqs? := argEqs?.push p?
 
+  /-
+    `paramEqs?` is an array that stores the proof that the `i`th parameter
+    used in `major` is equal to the `i`th parameter used in `majorMaybeCtor`.
+
+    `indEqs?` is an array that stores the proof that the `i`th index
+    used in `major` is equal to the `i`th index used in `majorMaybeCtor`.
+  -/
   let (paramEqs?, indEqs?) ←
       pure (argEqs?[:info.numParams].toArray, argEqs?[info.numParams:].toArray)
 
+  /-
+    `params` is the array of parameters appearing in `major`.
+    `newParams` is the array of parameters appearing in `majorMaybeCtor`.
+
+    Similarly for `_indices` and `newIndices`.
+  -/
   let (params, _indices) ←
       pure (typeArgs[:info.numParams].toArray, typeArgs[info.numParams:].toArray)
   let (newParams, newIndices) ←
       pure (newTypeArgs[:info.numParams].toArray, newTypeArgs[info.numParams:].toArray)
 
+  /-
+    We create a new version of the original recursor application by swapping
+    all appearances of old parameters (those in `params`) with the
+    new parameters (those in `newParams`).
+
+    `motivesMinors?` is an array that stores the proof that the
+    `i`th motive or minor premise of the original recursor application is equal
+    to the `i`th motive or minor premise of this new recursor application
+  -/
   let numMotivesMinors := info.numMotives + info.numMinors
   let motivesMinors? ← do
     if paramEqs?.any (·.isSome) then
@@ -174,6 +223,13 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
     else
       pure none
 
+  /-
+    `newRecArgs` is the array storing the arguments in the new recursor
+    application (the one creating by swapping the old parameters with the new ones).
+
+    `map` is an array storing the proof that the `i`th element of `newRecArgs`
+    is equal to the `i`th element of `recArgs`.
+  -/
   let mut newRecArgs := recArgs.set! majorIdx majorMaybeCtor
   let mut map : Std.HashMap Nat (Option EExpr) := .insert default majorIdx majorEqMajorMaybeCtor?
 
@@ -201,18 +257,28 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
     map := map.insert recIdx indEq?
     newRecArgs := newRecArgs.set! recIdx newIndices[idx]!
 
-  -- try
-  --   _ ← meth.inferTypePure 10001 eNewMajor'
-  -- let (_, eNewMajor?) := (← meth.inferType 121 eNewMajor') -- cast remaining args as necessary
-  -- let eNewMajor := eNewMajor?.getD eNewMajor'
-
+  /-
+    We now fully apply the reduction rule `rhs` with the new recursor arguments
+    and the new constructor arguments.
+  -/
   -- get parameters from recursor application (recursor rules don't need the indices,
   -- as these are determined by the constructor and its parameters/fields)
   rhs := mkAppRange rhs 0 info.getFirstIndexIdx newRecArgs
   -- get fields from constructor application
   rhs := mkAppRange rhs (majorArgs.size - rule.nfields) majorArgs.size majorArgs
 
+  /-
+    Given the proofs that the old recursor arguments are equal to the
+    new recursor arguments, construct the proof that the application of `rhs`
+    to the old arguments is equal to that of the new arguments.
+    (Also the remaining arguments to the recursor must be applied and
+    included in this proof.)
+  -/
   if map.values.any (·.isSome) then
+    /-
+      The remaining arguments to the recursor are any arguments
+      coming after the major premise.
+    -/
     let remArgs := recArgs[majorIdx + 1:].toArray
     let eNewMajor' := mkAppN recFn newRecArgs[:majorIdx + 1] |>.toPExpr
     let eNewMajorType' := (← meth.inferTypePure 121 eNewMajor')
@@ -232,6 +298,12 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
     let eNewMajor := Lean.mkAppN eNewMajor' remArgsNew |>.toPExpr
     let newe := Lean.mkAppN rhs remArgsNew |>.toPExpr
     -- _ ← meth.inferTypePure 7000 newe.toPExpr -- sanity check TODO remove
+
+    /-
+      `eEqeNewMajor?` is a proof that the original recursor application
+      is equal to the new recursor application built from the proofs of equality
+      we already have for all but the remaining recursor arguments.
+    -/
     let (.true, eEqeNewMajor?) ← meth.isDefEqApp 2 e eNewMajor map | unreachable!
 
     return .some (newe, eEqeNewMajor?)
