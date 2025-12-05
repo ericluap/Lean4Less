@@ -139,7 +139,7 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
   let mut rhs := rule.rhs.instantiateLevelParams info.levelParams ls
   let getNestedType (t' : PExpr) := do
     let t? := t'.toExpr.find? fun
-        | e@(.app ..) => 
+        | e@(.app ..) =>
           let fn := e.getAppFn
           if let .const n .. := fn then
              info.all.any (· == n)

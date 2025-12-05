@@ -1,7 +1,8 @@
 import Lean
+import Qq
 import Lean4Less.PExpr
 
-open Lean
+open Lean Qq
 
 instance : Coe LocalDecl FVarId where
   coe decl := decl.fvarId
@@ -41,7 +42,7 @@ inductive LocalDecl' where
 | l : LocalDecl → LocalDecl'
 deriving Inhabited
 
-def LocalDeclE.toLocalDecl (l : LocalDeclE) : LocalDecl := 
+def LocalDeclE.toLocalDecl (l : LocalDeclE) : LocalDecl :=
 .ldecl l.index l.fvarId l.userName l.type (l.value {}) false default -- TODO investigate use of `LocalDeclKind` field
 
 -- FIXME should I really be doing this?
@@ -120,14 +121,27 @@ usedLets : (EExpr : Type) → LamDataExtra EExpr → FVarIdSet
 | _, _ => default
 deriving Inhabited
 
+/--
+  Stores the information needed to prove that
+  `(fun a => f a) ≍ (fun b => g b)` for two functions `f` and `g`.
+
+  This information is used by `LamData.toExpr` to produce the heq proof term
+  with the patch theorems `L4L.lambdaHEq`, `L4L.lambdaHEqABUV`, etc.
+
+-/
 structure LamData (EExpr : Type) where
 u      : Level
 v      : Level
+/-- `A : Sort u`. This is the domain of the two functions. -/
 A      : PExpr
+/-- `U : Sort v` or `U : A → Sort v`. This is the codomain of the two functions. -/
 U      : PExpr × LocalDecl
+/-- `f : A → U` or `f : (a : A) → U a`. This one of the two functions. -/
 f      : PExpr
+/-- The local term of type `A` (appears in the types of `f` and `g`) -/
 a      : LocalDecl
 alets  : Array LocalDeclE
+/-- `g : A → U` or `g : (a : A) → U a`. This is one of the two functions. -/
 g      : PExpr
 faEqgx : EExpr × FVarIdSet
 extra  : LamDataExtra EExpr := .none
@@ -348,7 +362,7 @@ usedLets := hPQ.2
 deriving Inhabited
 
 inductive PIDataExtra (EExpr : Type) where
-| none 
+| none
 | HEq   : PIDataHEq EExpr → PIDataExtra EExpr
 with
 @[computed_field]
@@ -483,7 +497,7 @@ def withReversedFVars (ds : Array FVarId) (x : EM α) : EM α :=
 def swapRev (x : EM α) : EM α :=
   withReader (fun ctx => {ctx with rev := not ctx.rev}) x
 
-def rev : EM Bool := do pure (← read).rev 
+def rev : EM Bool := do pure (← read).rev
 
 abbrev ttrace (msg : String) : EM Unit := do
   if (← read).dbg then
@@ -736,7 +750,7 @@ def _root_.Lean.LocalDecl.replaceFVar (fvar val : PExpr) (var : LocalDecl) : Loc
 --
 -- def FVarData.reverse : FVarData → FVarData
 -- | {aEqb, bEqa} => Id.run $ do
---   pure {aEqb := bEqa, bEqa := aEqb} 
+--   pure {aEqb := bEqa, bEqa := aEqb}
 --
 -- def LamData.reverse : LamData EExpr → EM EExpr
 -- | {u, v, A, U, f, a, g, faEqgx, extra} => do
@@ -760,12 +774,12 @@ def _root_.Lean.LocalDecl.replaceFVar (fvar val : PExpr) (var : LocalDecl) : Loc
 --   pure ret
 --
 -- def ForallData.reverse : ForallData EExpr → EM EExpr
---   | {u, v, A, U, V, a, UaEqVx, extra} => do 
+--   | {u, v, A, U, V, a, UaEqVx, extra} => do
 --     let (extra, newA, newa) ← match extra with
 --     | .AB {b, B, hAB, vaEqb} => do
 --       let aEqb' := .mk $ EExpr.symm {u, a := b.toExpr.toPExpr, b := a.toExpr.toPExpr, A := B, B := A, aEqb := EExpr.other (vaEqb.bEqa.toExpr.toPExpr)}
 --       pure (.AB {b := a, B := A, hAB := (← (← hAB.reverse 6 A B (Expr.sort u).toPExpr (Expr.sort u).toPExpr u.succ).replaceFVarE (vaEqb.aEqb.toExpr.toPExpr) aEqb'), vaEqb := vaEqb.reverse}, B, b)
---     | .ABApp {b, vaEqb} => 
+--     | .ABApp {b, vaEqb} =>
 --       pure (.ABApp {b := a, vaEqb := vaEqb.reverse}, A, b)
 --     | .none =>
 --       pure (.none, A, a)
@@ -778,11 +792,11 @@ def _root_.Lean.LocalDecl.replaceFVar (fvar val : PExpr) (var : LocalDecl) : Loc
 --   let (extra, newA, newU, newf, newa) ← match extra with
 --   | .ABUV {B, hAB, V, hUV, g, fEqg, b, aEqb} =>
 --     pure (.ABUV {B := A, hAB := (← EExpr.reverse 8 A B (Expr.sort u).toPExpr (Expr.sort u).toPExpr u.succ hAB), V := U, hUV := (← HUVData.reverse A B (Prod.fst U) (Prod.fst V) u v hUV), g := f, fEqg := (← EExpr.reverse 9 f g (mkForall #[U.2] U.1) (mkForall #[V.2] V.1) (Level.imax u v) fEqg), b := a, aEqb := (← EExpr.reverse 10 a b A B u aEqb)}, B, V, g, b)
---   | .UV {V, hUV, g, fEqg, b, aEqb} => 
+--   | .UV {V, hUV, g, fEqg, b, aEqb} =>
 --     pure $ (.UV {V := U, hUV := (← HUVData.reverse A A (Prod.fst U) (Prod.fst V) u v hUV), g := f, fEqg := (← EExpr.reverse 11 f g (mkForall #[U.2] U.1) (mkForall #[V.2] V.1) (Level.imax u v) fEqg), b := a, aEqb := (← EExpr.reverse 12 a b A A u aEqb)}, A, V, g, b)
---   | .UVFun {V, hUV, g, fEqg} => 
+--   | .UVFun {V, hUV, g, fEqg} =>
 --     pure (.UVFun {V := U, hUV := (← HUVData.reverse A A (Prod.fst U) (Prod.fst V) u v hUV), g := f, fEqg := (← EExpr.reverse 13 f g (mkForall #[U.2] U.1) (mkForall #[V.2] V.1) (Level.imax u v) fEqg)}, A, V, g, a)
---   | .AB {B, hAB, g, fEqg, b, aEqb} => 
+--   | .AB {B, hAB, g, fEqg, b, aEqb} =>
 --     pure (.AB {B := A, hAB := (← EExpr.reverse 14 A B (Expr.sort u).toPExpr (Expr.sort u).toPExpr u.succ hAB), g := f, fEqg := (← EExpr.reverse 15 f g (mkForall #[U.2] U.1) (mkForall #[U.2] U.1) (Level.imax u v) fEqg), b := a, aEqb := (← EExpr.reverse 16 a b A B u aEqb)}, B, U, g, b)
 --   | .none {g, fEqg, b, aEqb} =>
 --     pure (.none {g := f, fEqg := (← EExpr.reverse 17 f g (mkForall #[U.2] U.1) (mkForall #[U.2] U.1) (Level.imax u v) fEqg), b := a, aEqb := (← EExpr.reverse 18 a b A A u aEqb)}, A, U, g, b)
@@ -915,7 +929,7 @@ def HUVData.toExprDep' (e : HUVData EExpr) : EM Expr := match e with -- FIXME wh
       | .some {b, vaEqb, blets, ..} =>
         let h ← expandLets' (alets ++ blets ++ vaEqb.lets) (← UaEqVb.1.toExpr')
         mkLambda #[a, b, vaEqb.aEqb] h
-      | .none => 
+      | .none =>
         let h ← expandLets' alets (← UaEqVb.1.toExpr')
         mkLambda #[a] h
   pure ret
@@ -949,10 +963,10 @@ def LamData.toExpr (e : LamData EExpr) : EM Expr := match e with
     | .ABUV {B, hAB, ..} {V} =>
         let (U, V, dep) ← getMaybeDepLemmaApp2 U V
         pure $ (#[B.toExpr, A, V, U, g, f, (← hAB.1.toExpr'), hfg], dep)
-    | .UV {V} => 
+    | .UV {V} =>
         let (U, V, dep) ← getMaybeDepLemmaApp2 U V
         pure (#[A.toExpr, V, U, g, f, hfg], dep)
-    | .none => 
+    | .none =>
         let (U, dep) ← getMaybeDepLemmaApp1 U
         pure (#[A.toExpr, U, g, f, hfg], dep)
     let n := extra.lemmaName dep
@@ -973,10 +987,10 @@ def LamData.toExpr (e : LamData EExpr) : EM Expr := match e with
         -- if dbgFIds.any (· == a.fvarId.name) then
         --   dbg_trace s!"DBG[0]: {a.fvarId.name}, {b.fvarId.name}, {dep}, {Lean.collectFVars default V |>.fvarIds.map (·.name)}"
         pure $ (#[A.toExpr, B, U, V, f, g, (← hAB.1.toExpr'), hfg], dep, V)
-    | .UV {V} => 
+    | .UV {V} =>
         let (U, V, dep) ← getMaybeDepLemmaApp2 U V
         pure (#[A.toExpr, U, V, f, g, hfg], dep, U)
-    | .none => 
+    | .none =>
         let (U, dep) ← getMaybeDepLemmaApp1 U
         pure (#[A.toExpr, U, f, g, hfg], dep, U)
 
@@ -999,7 +1013,7 @@ def ForallData.toExpr (e : ForallData EExpr) : EM Expr := match e with
     | .UV {V, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (U, V, dep)
-    | .AB {..} => 
+    | .AB {..} =>
       let (U, dep) ← getMaybeDepLemmaApp1 U
       assert! not dep
       pure (U, default, dep)
@@ -1079,13 +1093,13 @@ def AppData.toExpr (e : AppData EExpr) : EM Expr := match e with
     | .ABUV {B, hAB, V, hUV, g, fEqg, b, aEqb, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[B.toExpr, A, V, U, (← hAB.1.toExpr'), (← if dep then do hUV.toExprDep' else hUV.toExpr'), g, f, b, a, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], dep)
-    | .UV {V, hUV, g, fEqg, b, aEqb, ..} => 
+    | .UV {V, hUV, g, fEqg, b, aEqb, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[A.toExpr, V, U, (← if dep then hUV.toExprDep' else hUV.toExpr'), g, f, b, a, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], dep)
-    | .UVFun {V, hUV, g, fEqg, ..} => 
+    | .UVFun {V, hUV, g, fEqg, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[A.toExpr, V, U, (← if dep then hUV.toExprDep' else hUV.toExpr'), g, f, a, (← fEqg.1.toExpr')], dep)
-    | .AB {B, hAB, g, fEqg, b, aEqb, ..} => 
+    | .AB {B, hAB, g, fEqg, b, aEqb, ..} =>
       let U := U.1
       pure (#[B.toExpr, A, U, (← hAB.1.toExpr'), g, f, b, a, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], false)
     | .none {g, fEqg, b, aEqb, ..} => -- TODO fails to show termination if doing nested match?
@@ -1102,13 +1116,13 @@ def AppData.toExpr (e : AppData EExpr) : EM Expr := match e with
     | .ABUV {B, hAB, V, hUV, g, fEqg, b, aEqb, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[A.toExpr, B, U, V, (← hAB.1.toExpr'), (← if dep then do hUV.toExprDep' else hUV.toExpr'), f, g, a, b, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], dep)
-    | .UV {V, hUV, g, fEqg, b, aEqb, ..} => 
+    | .UV {V, hUV, g, fEqg, b, aEqb, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[A.toExpr, U, V, (← if dep then hUV.toExprDep' else hUV.toExpr'), f, g, a, b, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], dep)
-    | .UVFun {V, hUV, g, fEqg, ..} => 
+    | .UVFun {V, hUV, g, fEqg, ..} =>
       let (U, V, dep) ← getMaybeDepLemmaApp2 U V
       pure (#[A.toExpr, U, V, (← if dep then hUV.toExprDep' else hUV.toExpr'), f, g, a, (← fEqg.1.toExpr')], dep)
-    | .AB {B, hAB, g, fEqg, b, aEqb, ..} => 
+    | .AB {B, hAB, g, fEqg, b, aEqb, ..} =>
       let U := U.1
       pure (#[A.toExpr, B, U, (← hAB.1.toExpr'), f, g, a, b, (← fEqg.1.toExpr'), (← aEqb.1.toExpr')], false)
     | .none {g, fEqg, b, aEqb, ..} => -- TODO fails to show termination if doing nested match?
@@ -1195,7 +1209,7 @@ def CastData.toExpr : CastData EExpr → EM Expr
   else
     pure $ Lean.mkAppN (.const `L4L.castOrigHEq [u]) #[A, B, ← p.toExpr',  e]
 
-def EExpr.ctorName : EExpr → Name 
+def EExpr.ctorName : EExpr → Name
   | .lam .. => `lam
   | .forallE .. => `forallE
   | .app .. => `app
@@ -1211,7 +1225,7 @@ def EExpr.ctorName : EExpr → Name
 def withCtorName (n : Name × Array Name) (m : EM T) : EM T := do
   withReader (fun ctx => {ctx with ctorStack := ctx.ctorStack.push n}) m
 
-def EExpr.toExpr' (e : EExpr) : EM Expr := 
+def EExpr.toExpr' (e : EExpr) : EM Expr :=
   withCtorName (e.ctorName, e.usedLets.toArray.map (·.name)) do
   let ret ← match e with
   | .lam d

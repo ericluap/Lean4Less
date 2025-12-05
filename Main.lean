@@ -61,7 +61,7 @@ partial def getLeafModules (imports : Array Import) : ForEachModuleM $ Array (Na
     let mFiles ← findOLeanParts i.module
     let parts ← readModuleDataParts (mFiles.map (·.1))
     let some part0 := parts[0]? | unreachable!
-    let imports := part0.1.imports 
+    let imports := part0.1.imports
     let modLeafs ← getLeafModules imports
     leafs := leafs ++ modLeafs
     if modLeafs.size == 0 then
@@ -69,7 +69,7 @@ partial def getLeafModules (imports : Array Import) : ForEachModuleM $ Array (Na
       leafs := leafs.push (i.module, imports)
   pure leafs
 
-def getModConsts (env : Environment) (m : Name) := 
+def getModConsts (env : Environment) (m : Name) :=
   env.constants.map₁.toList.map (·.1) |>.filter fun n =>
     if let some nidx := env.const2ModIdx.get? n then
       if let some midx := env.getModuleIdx? m then
@@ -156,9 +156,9 @@ You can also use `lake exe lean4lean --fresh Mathlib.Data.Nat.Basic` to replay a
 unsafe def runTransCmd (p : Parsed) : IO UInt32 := do
   initSearchPath (← findSysroot)
   let mod : Name := p.positionalArg! "input" |>.value.toName
-  let onlyConsts? := p.flag? "only" |>.map fun onlys => 
+  let onlyConsts? := p.flag? "only" |>.map fun onlys =>
     onlys.as! (Array String)
-  let cachedPath? := p.flag? "cached" |>.map fun sp => 
+  let cachedPath? := p.flag? "cached" |>.map fun sp =>
     System.FilePath.mk $ sp.as! String
   let pi : Bool := p.hasFlag "proof-irrel"
   let dbgOnly : Bool := p.hasFlag "dbg-only"
@@ -356,3 +356,7 @@ unsafe def transCmd : Cmd := `[Cli|
 
 unsafe def main (args : List String) : IO UInt32 := do
   transCmd.validate args
+
+theorem test (P : Prop) (p q : P) : p = q := rfl
+
+#check_l4l test
