@@ -1500,7 +1500,11 @@ def inferProj (typeName : Name) (idx : Nat) (struct : PExpr) (patched : Bool) (s
   let patch := if patched then some (Expr.proj typeName idx struct).toPExpr else none
   return (dom.toPExpr, patch)
 
-@[inherit_doc inferType]
+/--
+  Given a term `e`, return
+  a patched version of the type of `e`
+  and a patched version of `e`.
+-/
 def inferType' (e : Expr) (_dbg := false) : RecPE := do
   if e.isBVar then
     throw <| .other
@@ -1513,10 +1517,8 @@ def inferType' (e : Expr) (_dbg := false) : RecPE := do
   let (r, ep?) ← match e with
     | .lit l => pure (l.type.toPExpr, none)
     | .mdata _ e => inferType'  e
-    -- | .mdata _ e => inferType 95 e
     | .proj s idx e =>
       let (t, e'?) ← inferType' e
-      -- let (t, e'?) ← inferType 96 e
       let e' := e'?.getD e.toPExpr
       inferProj s idx e' e'?.isSome t
     | .fvar n => pure (← inferFVar (← get) n ((← get).fvarRegistry.get? n.name), none)
@@ -1529,26 +1531,35 @@ def inferType' (e : Expr) (_dbg := false) : RecPE := do
     | .lam .. => inferLambda e false
     | .forallE .. => inferForall e
     | .app f a =>
+      /-
+        `fType'` is the patched version of the type of `f`.
+        `f'` is the patched version of `f`.
+
+        The type of `f` needs to be patched in the case that
+        seeing it is a forall requires using defeqs we are patching.
+      -/
       let (fType, f'?) ← inferType' f
-      -- let (fType, f'?) ← inferType 97 f
       let (fType', pf'?) ← ensureForallCore fType f
       let f' ← maybeCast 18 pf'? fType fType' (f'?.getD f.toPExpr)
-      -- if (← readThe Context).const == `eq_of_heq' then if let .lam _ (.const `Ty _) _ _ := a then
 
       let (aType, a'?) ← inferType' a
-      -- let (aType, a'?) ← inferType 98 a
-      -- _ ← inferTypePure 5001 fType -- sanity check
-      -- _ ← inferTypePure 5000 aType
 
       let dType := Expr.bindingDomain! fType' |>.toPExpr
-      -- it can be shown that if `e` is typeable as `T`, then `T` is typeable as `Sort l`
-      -- for some universe level `l`, so this use of `isDefEq` is valid
+
+      /-
+        `a'` is the patched version of `a`.
+        `pa'?` is a proof that `a` is equal to `a'`.
+
+        `a` needs to be patched in the case that seeing its type is defeq to
+        the type of the domain of `f` requires using defeqs we are patching.
+      -/
       let ((true, pa'?), a', _) ← smartCast' 19 aType dType (a'?.getD a.toPExpr) |
-        -- if e'.isApp then if let .const `Bool.casesOn _ := e'.withApp fun f _ => f then
-        -- dbg_trace s!"dbg: {(← whnf 0 dType.toExpr.getAppArgs[2]!.toPExpr).1} {(← whnf 0 aType.toExpr.getAppArgs[2]!.toPExpr).1}"
         throw <| .appTypeMismatch (← getKEnv) (← getLCtx) e fType' aType
 
-      let patch := if f'?.isSome || a'?.isSome || pf'?.isSome || pa'?.isSome then .some (Expr.app f' a').toPExpr else none
+      /- `patch` is the patched version of the original application `f a` -/
+      let patch :=
+        if f'?.isSome || a'?.isSome || pf'?.isSome || pa'?.isSome then
+          .some (Expr.app f' a').toPExpr else none
       pure ((Expr.bindingBody! fType').instantiate1 a' |>.toPExpr, patch)
     | .letE .. => inferLet e
   modify fun s => { s with inferTypeC := s.inferTypeC.insert e (r, ep?) }
