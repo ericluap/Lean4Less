@@ -42,13 +42,13 @@ match fuel with
     --   dbg_trace s!"DBG[3]: {d.name}, {fuel}, {idx}"
     -- if (← get).numCalls > 1000000 then
     --   throw $ .other "translation aborted"
-    modify fun s => {s with numCalls := s.numCalls + 1} 
+    modify fun s => {s with numCalls := s.numCalls + 1}
     let s ← get
-    -- let newFuel := 
+    -- let newFuel :=
     --   match d with
     --   | .quickIsDefEq t s b => fuel'
     --   | _ => fuel'
-    --   
+    --
 
     let mut printedTrace := false
     let mut t := none
@@ -79,7 +79,7 @@ match fuel with
 
     -- let meth := Methods.withFuel fuel'
     -- if s.isDefEqCache.size > 300 then
-    --   modify fun s => {s with isDefEqCache := Std.HashMap.empty (capacity := 1000)} 
+    --   modify fun s => {s with isDefEqCache := Std.HashMap.empty (capacity := 1000)}
 
     --
     --   -- pure ()
@@ -98,14 +98,14 @@ match fuel with
     --       -- | .unknown tn' sn' =>
     --       --   -- let w ← whnfCorePure tn'
     --       --   let x ← match tn' with
-    --       --   | .proj _ i s => 
+    --       --   | .proj _ i s =>
     --       --     let s ← runLeanRecM (Lean.TypeChecker.Inner.reduceProj i s false false) meth
     --       --     -- let s ← runLeanMinusRecM (Lean.TypeChecker.Inner.inferType s.getAppArgs[5]! true) meth
     --       --     -- let s ← runLeanMinusRecM (Lean.TypeChecker.Inner.whnfCore s.get!) meth
     --       --     pure s
     --       --   | _ => unreachable!
     --       --   dbg_trace s!"DBG[1]: {← isDefEqCorePure (← whnfCorePure tn').toPExpr sn'.toPExpr} {sn'}"
-    --       -- | _ => unreachable! 
+    --       -- | _ => unreachable!
     --     | _ => unreachable!
     --
       -- let t ← match stack[10]!.2 with
@@ -128,7 +128,7 @@ match fuel with
     try
       let ret ← withCallId s.numCalls traceId do
         if tr then
-          withCallData idx s.numCalls d do 
+          withCallData idx s.numCalls d do
             -- if let some id := traceId then
             --   if s.numCalls == id then
             --     let stack := (← readThe Context).callStack
@@ -149,19 +149,19 @@ match fuel with
       --   let stack := (← readThe Context).callStack--.map (·.2.2)
       --   let d := stack[stack.size - 2]!
       --   match d.2.2 with
-      --   | .isDefEqCore t s .. => 
+      --   | .isDefEqCore t s .. =>
       --     let ret ← isDefEqLean t s 1000 (Methods.withFuel fuel')
       --     dbg_trace s!"DBG[11]: Methods.lean:119: ret={ret}"
       --     pure ()
       --   | _ => unreachable!
-        -- isDefEqLean 
+        -- isDefEqLean
       if let .other "translation aborted" := e then
         pure ()
       else
         dbg_trace s!"err calltrace {s.numCalls}: {(← readThe Context).callStack.map (·.1)}, {idx}"
       throw e
 
-def Methods.withFuel (n : Nat) : Methods := 
+def Methods.withFuel (n : Nat) : Methods :=
   { isDefEqCore := fun i t s => do
       fuelWrap i n $ .isDefEqCore t s
     isDefEqApp := fun i t s m p => do
@@ -197,22 +197,8 @@ With the level context `lps`, infers the type of expression `e` and checks that
 
 Use `inferType` to infer type alone.
 -/
-def check (e : Expr) (lps : List Name) : MPE := do
-  let (type, patch?) ← withReader ({ · with lparams := lps, dbgFIds }) (inferType 82 e).run
-  -- let (_, e'?) := ret
-
-  -- if let some e' := e'? then
-  --   for c in e'.toExpr.getUsedConstants do
-  --     if not ((← getEnv).find? c).isSome then
-  --       throw $ .other s!"possible patching loop detected ({c})"
-
-  let patch? ← do
-    if let some patch := patch? then
-      -- let x := ← (Lean.collectFVars default patch.toExpr).fvarIds.mapM fun v => do pure (v.name, (← get).fvarRegistry.get? v.name)
-      -- dbg_trace s!"DBG[1]: Methods.lean:202: patch={← (Lean.collectFVars default patch.toExpr).fvarIds.mapM fun v => do pure (v.name, (← get).fvarRegistry.get? v.name)}"
-      pure $ .some $ patch
-    else pure none
-  pure (type, patch?)
+def check (e : Expr) (lps : List Name) : MPE :=
+  withReader ({ · with lparams := lps, dbgFIds }) (inferType 82 e).run
 
 def checkPure (e : Expr) (lps : List Name) : M PExpr :=
   withReader ({ · with lparams := lps }) (inferTypePure 83 e.toPExpr).run
@@ -245,12 +231,12 @@ def whnfPure (e : PExpr) (lps : List Name) : M PExpr :=
   withReader ({ · with lparams := lps }) (Inner.whnfPure 99 e).run
 
 @[inherit_doc ensureSortCore]
-def ensureSort (t : PExpr) (lps : List Name) (s := t) : MEE := 
-  withReader ({ · with lparams := lps }) $ RecM.run do 
+def ensureSort (t : PExpr) (lps : List Name) (s := t) : MEE :=
+  withReader ({ · with lparams := lps }) $ RecM.run do
     ensureSortCore t s
 
 @[inherit_doc ensureSortCore]
-def ensureSortPure (t : PExpr) (lps : List Name) (s := t) : M PExpr := withReader ({ · with lparams := lps }) $ RecM.run do 
+def ensureSortPure (t : PExpr) (lps : List Name) (s := t) : M PExpr := withReader ({ · with lparams := lps }) $ RecM.run do
   try
     let res ← runLeanMinus $ Lean.TypeChecker.ensureSort t.toExpr s.toExpr
     pure res.toPExpr
@@ -260,7 +246,7 @@ def ensureSortPure (t : PExpr) (lps : List Name) (s := t) : M PExpr := withReade
 @[inherit_doc ensureForallCore]
 def ensureForall (t : PExpr) (lps : List Name) (s := t) : MEE := withReader ({ · with lparams := lps }) $ (ensureForallCore t s).run
 
-def maybeCast (p? : Option EExpr) (typLhs typRhs e : PExpr) (lps : List Name) : M PExpr := 
+def maybeCast (p? : Option EExpr) (typLhs typRhs e : PExpr) (lps : List Name) : M PExpr :=
   withReader ({ · with lparams := lps }) (Inner.maybeCast 24 p? typLhs typRhs e).run
 
 def isValidApp (e : PExpr) (lps : List Name) : M Unit := do

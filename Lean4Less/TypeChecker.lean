@@ -1,4 +1,5 @@
-import Lean4Less.Quot import Lean4Less.Inductive.Reduce
+import Lean4Less.Quot
+import Lean4Less.Inductive.Reduce
 import Lean4Less.EExpr
 
 import Lean4Lean.Environment

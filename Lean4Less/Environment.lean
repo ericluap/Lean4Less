@@ -21,7 +21,6 @@ def checkConstantVal (env : Kernel.Environment) (v : ConstantVal) (allowPrimitiv
   let (sort, typeTypeEqSort?) ← ensureSort typeType v.levelParams type'
   let type'' ← maybeCast typeTypeEqSort? typeType sort type' v.levelParams
   let ret ← insertInitLets type''
-  -- isValidApp ret v.levelParams
   pure ret
 
 def patchAxiom (env : Kernel.Environment) (v : AxiomVal) (opts : TypeCheckerOpts) :
@@ -52,7 +51,6 @@ def patchDefinition (env : Kernel.Environment) (v : DefinitionVal) (allowAxiomRe
       let value ← insertInitLets value
       if type.toExpr.hasFVar || value.toExpr.hasFVar then
         throw $ .other "fvar in translated term"
-      -- isValidApp value v.levelParams
       let v := {v with type, value}
       return .defnInfo v
   else
@@ -60,31 +58,19 @@ def patchDefinition (env : Kernel.Environment) (v : DefinitionVal) (allowAxiomRe
       checkConstantVal env v.toConstantVal (← checkPrimitiveDef env v)
 
     M.run env v.name (safety := .safe) (lctx := {}) opts do
-      -- dbg_trace s!"DBG[25]: Environment.lean:49: v.name={v.name}"
       checkNoMVarNoFVar env v.name v.value
-      -- dbg_trace s!"DBG[34]: Environment.lean:52 (after checkNoMVarNoFVar env v.name v.value)"
       let (valueType, value'?) ← TypeChecker.check v.value v.levelParams
-      -- dbg_trace s!"DBG[98]: Environment.lean:54: valueType={valueType}"
       let value' := value'?.getD v.value.toPExpr
-      -- dbg_trace s!"DBG[33]: Environment.lean:54 (after let value := value?.getD v.value.toPExpr)"
-      -- dbg_trace s!"DBG[31]: Environment.lean:57: valueTypeEqtype?={valueTypeEqtype?}"
 
       let (true, value) ← smartCast valueType type value' v.levelParams |
         if allowAxiomReplace then
           return .axiomInfo {v with type, isUnsafe := false}
         else
           throw <| .declTypeMismatch env (.defnDecl v) valueType
-      -- dbg_trace s!"DBG[0]: Methods.lean:202: patch={(Lean.collectFVars default type.toExpr).fvarIds.map fun v => v.name}"
-      -- dbg_trace s!"DBG[1]: Methods.lean:202: patch={(Lean.collectFVars default value'.toExpr).fvarIds.map fun v => v.name}"
-      -- dbg_trace s!"DBG[2]: Methods.lean:202: patch={(Lean.collectFVars default valueType.toExpr).fvarIds.map fun v => v.name}"
-      -- dbg_trace s!"DBG[3]: Methods.lean:202: patch={← (Lean.collectFVars default value.toExpr).fvarIds.mapM fun v => do pure (v.name, (← get).fvarRegistry.get? v.name)}"
-      -- dbg_trace s!"DBG[15]: Environment.lean:65 (after let value ← smartCast valueType type v…)"
       let value ← insertInitLets value
-      -- isValidApp value v.levelParams
       let v := {v with type, value}
       if type.toExpr.hasFVar || value.toExpr.hasFVar then
         throw $ .other "fvar in translated term"
-      -- dbg_trace s!"DBG[35]: Environment.lean:64 (after let v := v with type, value)"
       return (.defnInfo v)
 
 def patchTheorem (env : Kernel.Environment) (v : TheoremVal) (allowAxiomReplace := false) (opts : TypeCheckerOpts) :
@@ -172,7 +158,6 @@ def patchMutual (env : Kernel.Environment) (vs : List DefinitionVal) (opts : Typ
 /-- Type check given declaration and add it to the environment -/
 def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeCheckerOpts := {}) (allowAxiomReplace := false) :
     Except Kernel.Exception Kernel.Environment := do
-  -- let env := env.toStage₁
   match decl with
   | .axiomDecl v =>
     let v ← patchAxiom env v opts
@@ -181,8 +166,6 @@ def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeChec
     let v ← patchDefinition env v false opts
     return env.add v
   | .thmDecl v =>
-    -- if v.name == ``Array.eraseIdx._unary.induct then
-    --   dbg_trace s!"DBG[62]: Environment.lean:185 (after sorry)"
     let v ← patchTheorem env v false opts
     return env.add v
   | .opaqueDecl v =>

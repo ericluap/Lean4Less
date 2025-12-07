@@ -103,6 +103,19 @@ def getRecRuleFor (rval : RecursorVal) (major : Expr) : Option RecursorRule := d
   let .const fn _ := major.getAppFn | none
   rval.rules.find? (·.ctor == fn)
 
+def constructIotaReductionProof (recFn : Name) (newRecArgs majorArgs : Array Expr)
+    (major : Expr) (ls : List Level) : Option EExpr :=
+  if recFn == ``Nat.rec then
+    EExpr.iota {
+      u := ls[0]!
+      motive := newRecArgs[0]!
+      zero := newRecArgs[1]!
+      succ := newRecArgs[2]!
+      major := majorArgs[0]!
+    }
+  else
+    none
+
 /--
 Performs recursor reduction on `e` (returning `none` if not applicable).
 
@@ -268,13 +281,19 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
   rhs := mkAppRange rhs (majorArgs.size - rule.nfields) majorArgs.size majorArgs
 
   /-
+    `eNewMajor_eq_rhs?` is a proof that the application of the recursor to the
+    new arguments is equal to its iota reduced version.
+  -/
+  let eNewMajorEqrhs? := constructIotaReductionProof recFnName newRecArgs majorArgs majorMaybeCtor ls
+
+  /-
     Given the proofs that the old recursor arguments are equal to the
     new recursor arguments, construct the proof that the application of `rhs`
     to the old arguments is equal to that of the new arguments.
     (Also the remaining arguments to the recursor must be applied and
     included in this proof.)
   -/
-  if map.values.any (·.isSome) then
+  if map.values.any (·.isSome) || eNewMajorEqrhs?.isSome then
     /-
       The remaining arguments to the recursor are any arguments
       coming after the major premise.
@@ -305,8 +324,9 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
       we already have for all but the remaining recursor arguments.
     -/
     let (.true, eEqeNewMajor?) ← meth.isDefEqApp 2 e eNewMajor map | unreachable!
+    let eEqNewe? ← meth.appHEqTrans? e eNewMajor newe eEqeNewMajor? eNewMajorEqrhs?
 
-    return .some (newe, eEqeNewMajor?)
+    return .some (newe, eEqNewe?)
   else
     let newe := mkAppRange rhs (majorIdx + 1) recArgs.size recArgs |>.toPExpr
     return .some (newe, none)

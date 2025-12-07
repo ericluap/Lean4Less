@@ -359,4 +359,10 @@ unsafe def main (args : List String) : IO UInt32 := do
 
 theorem test (P : Prop) (p q : P) : p = q := rfl
 
-#check_l4l test
+def motive (_ : Nat) := Type
+def zero : motive 0 := Unit
+def succ (n : Nat) (_ : motive n) := Unit
+theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) :
+  False := f t
+
+#check_l4l test2

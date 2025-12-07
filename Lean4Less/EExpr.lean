@@ -1,6 +1,7 @@
 import Lean
 import Qq
 import Lean4Less.PExpr
+import patch.PatchTheorems
 
 open Lean Qq
 
@@ -379,7 +380,16 @@ extra : PIDataExtra EExpr := .none
 usedLets := extra.usedLets
 deriving Inhabited
 
-
+/--
+  Tracks the data needed to create a proof
+  that an applied recursor is equal to its iota reduction.
+-/
+structure IotaData where
+  u : Level
+  motive : Q(Nat → Sort $u)
+  zero : Q($motive Nat.zero)
+  succ : Q((n : Nat) → $motive n → $motive n.succ)
+  major : Q(Nat)
 
 /--
 Structured data representing expressions for proofs of equality.
@@ -397,6 +407,7 @@ inductive EExpr where
 | sry      : SorryData → EExpr
 | cast     : CastData EExpr → EExpr
 | rev      : EExpr → EExpr -- "thunked" equality reversal
+| iota     : IotaData → EExpr
 with
   @[computed_field]
   usedLets : @& EExpr → FVarIdSet
@@ -411,6 +422,7 @@ with
   | .refl _ => default
   | .sry _  => default
   | .cast _ => default
+  | .iota _ => default
 deriving Inhabited
 
 instance : Coe EExpr (EExpr × FVarIdSet) where
@@ -807,6 +819,14 @@ def CastData.toExpr : CastData EExpr → EM Expr
   else
     pure $ Lean.mkAppN (.const `L4L.castOrigHEq [u]) #[A, B, ← p.toExpr',  e]
 
+/--
+  Convert the data representing the proof of an iota reduction
+  into an actual proof of an iota reduction.
+-/
+def IotaData.toExpr : IotaData → EM Expr
+| {u, motive, zero, succ, major} =>
+  pure q(L4L.nat_iota_succ (motive := $motive) $zero $succ $major)
+
 def EExpr.ctorName : EExpr → Name
   | .lam .. => `lam
   | .forallE .. => `forallE
@@ -819,6 +839,7 @@ def EExpr.ctorName : EExpr → Name
   | .sry .. => `sry
   | .cast .. => `cast
   | .rev .. => `rev
+  | .iota .. => `iota
 
 def withCtorName (n : Name × Array Name) (m : EM T) : EM T := do
   withReader (fun ctx => {ctx with ctorStack := ctx.ctorStack.push n}) m
@@ -835,6 +856,7 @@ def EExpr.toExpr' (e : EExpr) : EM Expr :=
   | .refl d
   | .prfIrrel d
   | .sry d
+  | .iota d
   | .cast d => d.toExpr
   | .rev e => do
     let ret ← (swapRev e.toExpr')
