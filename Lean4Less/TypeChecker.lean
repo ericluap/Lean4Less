@@ -282,7 +282,7 @@ Reduces `e` to its weak-head normal form.
 -/
 def whnf (n : Nat) (e : PExpr) (cheapK := false) : RecEE := fun m => m.whnf n e (cheapK := cheapK)
 
-def whnfPure (n : Nat) (e : PExpr) : RecM PExpr := fun m => m.whnfPure n e 
+def whnfPure (n : Nat) (e : PExpr) : RecM PExpr := fun m => m.whnfPure n e
 
 @[inline] def withPure [MonadWithReaderOf Context m] (x : m α) : m α :=
   withReader (fun l => {l with pure := true}) x
@@ -312,10 +312,10 @@ def whnfPure (n : Nat) (e : PExpr) : RecM PExpr := fun m => m.whnfPure n e
   withReader (fun l => {l with noCache := true}) x
 
 def dbg_wrap (idx : Nat) (m : RecM α) : RecM α := do
-  modify fun s => {s with numCalls := s.numCalls + 1} 
+  modify fun s => {s with numCalls := s.numCalls + 1}
   let s ← get
   let ret ← withCallId s.numCalls (← readThe Context).dbgCallId do
-    withCallData idx s.numCalls none do 
+    withCallData idx s.numCalls none do
       m
   pure ret
 
@@ -446,7 +446,7 @@ algorithmic definitional equality judgment.
 
 NOTE: This function does not do any typechecking of its own on `t` and `s`.
 So, when this is used as part of a typechecking routine, it is expected that
-they are already well-typed (that is, that `check t` and `check s` 
+they are already well-typed (that is, that `check t` and `check s`
 did not/would not throw an error). This ensures in particular that any calls to
 `inferType e (inferOnly := false)` on subterms `e` would not fail, so we know
 that `e` types as the return value of `inferType e (inferOnly := true)`.
@@ -697,7 +697,7 @@ def isDefEqBinder (binDatas : Array (BinderData × BinderData)) (tBody sBody : P
           withNewFVar 3 default teqsType.toPExpr default fun vtEqs => do
             withNewFVar 4 default seqtType.toPExpr default fun vsEqt => do
               withEqFVar tvar svar { aEqb := vtEqs, bEqa := vsEqt, a := tvar.toExpr.toPExpr, b := svar.toExpr.toPExpr, A := tDom, B := sDom, u := lvl } do
-                cont (.some (svar, vtEqs, vsEqt, p?)) svar 
+                cont (.some (svar, vtEqs, vsEqt, p?)) svar
       else
         cont none tvar
 
@@ -715,7 +715,7 @@ def isDefEqPure (n : Nat) (t s : PExpr) (fuel := 1000) : RecM Bool := do
     match e with
     | .deepRecursion =>
       pure false -- proof irrelevance may be needed to avoid deep recursion (e.g. String.size_toUTF8)
-    | _ => 
+    | _ =>
       dbg_trace s!"isDefEqPure error: {n}, {t}, {s}"
       throw e
 
@@ -799,7 +799,7 @@ def isDefEqForall' (t s : PExpr) (numBinds : Nat) (f : Option EExpr → RecM (Op
               -- pure $ .ABApp {b, vaEqb := {aEqb, bEqa}}
           else
             pure $ .UV {V, UaEqVx}
-        else 
+        else
           let .some (b, aEqb, bEqa, hAB?) := d? | unreachable!
           let B := b.type.toPExpr
           let some hAB := hAB? | unreachable!
@@ -942,7 +942,7 @@ def methsA : ExtMethodsA RecM := {
     meths with
     opt := true
     isDefEqForall := isDefEqForall'
-    -- alignForAll := alignForAll 
+    -- alignForAll := alignForAll
   }
 
 def isDefEqApp'' (tf sf : PExpr) (tArgs sArgs : Array PExpr) (targsEqsargs? : Std.HashMap Nat (Option EExpr) := default)
@@ -990,7 +990,7 @@ def isDefEqApp' (t s : PExpr) (targsEqsargs? : Std.HashMap Nat (Option EExpr) :=
   (tfEqsf? : Option (Option EExpr) := none) (cache := true) : RecM (Bool × Option (EExpr × Array (Option (PExpr × PExpr × EExpr)))) := do
   unless t.toExpr.isApp && s.toExpr.isApp do return (false, none)
   t.toExpr.withApp fun tf tArgs =>
-  s.toExpr.withApp fun sf sArgs => 
+  s.toExpr.withApp fun sf sArgs =>
     let tf := tf.toPExpr
     let sf := sf.toPExpr
     let tArgs := tArgs.map (·.toPExpr)
@@ -1033,6 +1033,10 @@ def isDefEqBinOpt (t s : PExpr) (lambda : Bool): RecB := do
 def isDefEqForallOpt (t s : PExpr) : RecB := isDefEqBinOpt t s false
 def isDefEqLambdaOpt (t s : PExpr) : RecB := isDefEqBinOpt t s true
 
+/--
+  Count the number of nested lambdas appearing
+  at the beginning of an expression.
+-/
 def lamCount : Expr → Nat
   | .lam _ _ b _ =>
     lamCount b + 1
@@ -1093,17 +1097,28 @@ def alignLets (remLets : List LocalDeclE) (vars vals : Array Expr) (f : Array Ex
 
   loop remLets #[] #[]
 
-def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM ((Bool × Option EExpr) × PExpr × Option (Option EExpr)) := do
+/--
+  Given expressions `tl`, `tr`, and `e : tl`, return
+  a bool representing whether or not `tl` is equal to `tr`,
+  a proof that `tl` is equal to `tr`,
+  a casted version of `e` that now has type `tr`,
+  and a proof that `e` is equal to its casted version.
+-/
+def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) :
+    RecM ((Bool × Option EExpr) × PExpr × Option (Option EExpr)) := do
+  /- Given a term `tl : Sort u`, return the level `u`. -/
   let getLvl tl := do
     let sort ← inferTypePure 13 tl
     let sort' ← ensureSortCorePure sort tl
     pure sort'.toExpr.sortLevel!
 
+  /-
+    Given the name of casting theorem `nm` (`L4L.castHEq` or ``L4L.castOrigHEq`),
+    cast the expression `e : tl` to have type `tr` using the proof `p : tl ≍ tr`.
+    Then replace any uses of the fvars `prfVars` with `prfVals` inside of this cast.
+  -/
   let mkCast'' (_n : Nat) (nm : Name) (tl tr : Expr) (p : EExpr) e (prfVars prfVals : Array Expr) (lvl : Level) := do
     let pe := p.toExpr (dbg := (← shouldTTrace))
-    -- dbg_trace s!"DBG[2]: TypeChecker.lean:825 {← getTrace}, {← callId}, {p?.isSome}"
-    -- _ ← inferTypeCheck pe.toPExpr
-    -- dbg_trace s!"DBG[3]: TypeChecker.lean:827 (after _ ← inferTypeCheck pe.toPExpr)"
     let app := Lean.mkAppN (← getConst nm [lvl]) #[tl, tr, pe, e]
     pure $ app.replaceFVars prfVars prfVals
 
@@ -1111,12 +1126,18 @@ def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM ((
     let lvl ← getLvl tl.toPExpr
     mkCast'' n nm tl tr p e prfVars prfVals lvl
 
+  /-
+    If `e` is of the form `fun x => b`, then instead of casting like
+    `cast proof (fun x => b)`, go within the lambda and cast like
+    `fun x => cast proof' b`.
+    Otherwise, just cast `e` as normal.
+  -/
   let rec loop remLams e tl tr (lamVars prfVars prfVals letVars letVals : Array Expr) (lamLetVars : Array (Array LocalDecl)) p : RecM Expr := do
     match remLams, e, tl, tr, p with
     | remLams' + 1, .lam nm _ b bi, .forallE _ _ tbl .., .forallE _ tdr tbr .., .forallE forallData =>
       let {A, a, extra, u, alets, ..} := forallData
       withNewFVar 5 nm tdr.toPExpr bi fun var => do
-        let UaEqVx? : Option EExpr := 
+        let UaEqVx? : Option EExpr :=
           match extra with
           | .ABUV {UaEqVx, ..}
           | .UV {UaEqVx, ..} => Option.some UaEqVx.1
@@ -1135,16 +1156,12 @@ def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM ((
 
             let newPrfVars := #[a.toExpr, b.toExpr, vaEqb.aEqb.toExpr]
             let newPrfVals := #[vCast, v, vCastEqv]
-            -- let r e := e.replaceFVars (prfVars ++ newPrfVars ++ letVars) (prfVals ++ newPrfVals ++ letVals)
 
-            -- pure (newPrfVars, newPrfVals, vCast, (alets ++ blets ++ vaEqb.lets).map fun l => {l with type := r l.type, value := fun ctx => r (l.value ctx)})
             pure (newPrfVars, newPrfVals, vCast, alets ++ blets ++ vaEqb.lets)
-          | _ => 
+          | _ =>
             let newPrfVars := #[a.toExpr]
             let newPrfVals := #[v]
-            -- let r e := e.replaceFVars (prfVars ++ newPrfVars ++ letVars) (prfVals ++ newPrfVals ++ letVals)
 
-            -- pure (#[a.toExpr], #[v], v, alets.map fun l => {l with type := r l.type, value := fun ctx => r (l.value ctx)})
             pure (newPrfVars, newPrfVals, v, alets)
 
         let prfVars := prfVars ++ newPrfVars
@@ -1163,38 +1180,35 @@ def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM ((
           let letVals := letVals ++ newLetVals
           if let some (UaEqVx : EExpr) := UaEqVx? then
             let ret ← loop remLams' b tbl tbr lamVars prfVars prfVals letVars letVals lamLetVars UaEqVx
-            -- if newLetVars.any fun l => l.fvarId!.name == "_kernel_fresh.2400".toName then
-            --   dbg_trace s!"DBG[C]: EExpr.lean:858 {ret.containsFVar' (.mk "_kernel_fresh.2400".toName)}"
-            --   for val in letVals do
-            --     let some var := (← getLCtx).find? val.fvarId! | throw $ .other "unreachable!"
-            --     dbg_trace s!"DBG[E]: EExpr.lean:858 {var.fvarId.name}, {var.type.containsFVar' (.mk "_kernel_fresh.2400".toName)}, {var.value.containsFVar' (.mk "_kernel_fresh.2400".toName)}"
             pure ret
           else
-            -- let ret := (← getLCtx).mkLambda' (← letUseCount) lamVars b
             let bod := b.replaceFVars (prfVars ++ letVars) (prfVals ++ letVals)
             let ret := expandLetsLambda (← getLCtx) lamVars lamLetVars bod
-            -- if letVars.any fun l => l.fvarId!.name == "_kernel_fresh.2400".toName then
-            --   dbg_trace s!"DBG[D]: EExpr.lean:858 {ret.containsFVar' (.mk "_kernel_fresh.2400".toName)}, {bod.containsFVar' (.mk "_kernel_fresh.2400".toName)}"
             pure ret
     | _, _, _, _, _ =>
       let cast ← mkCast' (3000 + n) `L4L.castHEq tl tr p e (prfVars ++ letVars) (prfVals ++ letVals)
-      -- let ret := (← getLCtx).mkLambda' (← letUseCount) lamVars cast
       let ret := expandLetsLambda (← getLCtx) lamVars lamLetVars cast
-      -- if letVars.any fun l => l.fvarId!.name == "_kernel_fresh.2400".toName then
-      --   dbg_trace s!"DBG[F]: EExpr.lean:858 {ret.containsFVar' (.mk "_kernel_fresh.2400".toName)}, {prfVals.any fun v => v.containsFVar' (.mk "_kernel_fresh.2400".toName)} {letVals.any fun v => v.containsFVar' (.mk "_kernel_fresh.2400".toName)}"
       pure ret
-  termination_by remLams -- TODO why doesn't structural recursion on `p` work here?
 
   let nLams := lamCount e
-  let tlEqtr? ← do
+
+  /-
+    `tlEqtr?` says whether or not `tl` is equal to `tr`
+    and what the proof of their equality is.
+
+    If the proof of their equality `p?` is provided, then
+    `tlEqtr?` is just `(true, .some p)`.
+    Otherwise, it attempts check if they are equal and create the proof
+    of their equality by calling `isDefEq`.
+  -/
+  let tlEqtr? : Bool × Option EExpr ← do
     pure ()
     if let some p := p? then
       pure $ (true, .some p)
     else
-      let (tl', tr', nLams) ← try 
+      let (tl', tr', nLams) ← try
         alignForAll nLams tl tr
       catch ex =>
-        -- dbg_trace s!"smartCast error: {n}, {nLams}"
         throw ex
       let tl' := tl'.toPExpr
       let tr' := tr'.toPExpr
@@ -1205,23 +1219,18 @@ def smartCast' (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM ((
         let ret ← isDefEq (1000 + n) tl tr
         pure ret
 
-  -- if let (true, some tlEqtr) := tlEqtr? then -- sanity check (TODO delete)
-  --   let pT ← inferTypePure 0 tlEqtr
-  --   let lvl ← getLvl tl tr
-  --   let heq := (Lean.mkAppN (← getConst `HEq [.succ lvl]) #[(Expr.sort lvl).toPExpr, tl, (Expr.sort lvl).toPExpr, tr]).toPExpr
-  --   if not (← isDefEqPure 0 pT heq) then
-  --     let (true, some tlEqtr) ← isDefEq (1000 + n) tl tr | unreachable!
-  --     throw $ .other s!"cast equality does not have expected type"
-  let mut (ret, eEqCaste??) := (← tlEqtr?.2.mapM (fun (p : EExpr) => do
+  /-
+    `ret` is the casted version of expression `e`.
+    `eEqCaste??` is the proof that `e` is equal to `ret`.
+  -/
+  let mut (ret, eEqCaste?) : PExpr × (Option EExpr) := (← tlEqtr?.2.mapM (fun (p : EExpr) => do
     if nLams == 0 then
       let cast ← mkCast' (4000 + n) `L4L.castHEq tl.toExpr tr.toExpr p e.toExpr #[] #[]
-      let lvl ← getLvl tl
-      -- let (true, eEqCaste?) ← checkIsDefEqCache 12345 e cast.toPExpr do pure $ (true, .some $ .rev $ .cast {A := tl, B := tr, p, e, u := lvl})  | unreachable!
       pure (cast.toPExpr, none)
     else
       pure ((← loop nLams e.toExpr tl.toExpr tr.toExpr #[] #[] #[] #[] #[] #[] p).toPExpr, none))).getD (e, none)
 
-  pure $ (tlEqtr?, ret, eEqCaste??)
+  pure $ (tlEqtr?, ret, eEqCaste?)
 
 def insertInitLets (e : PExpr) : RecM PExpr := do
   let initLets ← getInitLets
@@ -1234,6 +1243,11 @@ def insertInitLets (e : PExpr) : RecM PExpr := do
   let ret := expandLets (initLets.map (·.toLocalDecl)) e |>.toPExpr
   pure ret
 
+/--
+  Given expressions `tl`, `tr`, and `e : tl`, return
+  a bool representing whether or not `tl` is equal to `tr`
+  and a casted version of `e` that now has type `tr`.
+-/
 def smartCast (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM (Bool × PExpr) := do
   let ret ← try
     smartCast' n tl tr e p?
@@ -1242,6 +1256,11 @@ def smartCast (n : Nat) (tl tr e : PExpr) (p? : Option EExpr := none) : RecM (Bo
     throw ex
   pure (ret.1.1, ret.2.1)
 
+/--
+  If we have a proof that `typLhs` is equal to `typRhs` (i.e. `p?` is `.some`),
+  then return a casted version of `e : typLhs` that now has type `typRhs`.
+  Otherwise, just return `e`.
+-/
 def maybeCast (n : Nat) (p? : Option EExpr) (typLhs typRhs e : PExpr) : RecM PExpr := do
   pure $ (← p?.mapM (fun (p : EExpr) => do
         let (_, cast) ← smartCast n typLhs typRhs e p
@@ -1314,7 +1333,7 @@ def inferLambda (e : Expr) (dbg := false) : RecPE := loop #[] false e where
         let ret := (expandLetsLambda (← getLCtx) fvars lets e').toPExpr
         -- ttrace s!"DBG[2]: TypeChecker.lean:1067: ret={ret.toExpr.containsFVar' (.mk "_kernel_fresh.503".toName)} {← callId}"
         pure $ some ret
-      else 
+      else
         pure none
 
     -- TODO only return .some if any of the fvars had domains that were patched, or if e'? := some e'
@@ -1399,11 +1418,11 @@ def inferLet (e : Expr) : RecPE := do
     loop fvars typePatched : Expr → RecPE
     | .letE name type val body _ => do
       let type := type.instantiateRev fvars
-      let (sort, type'?) ← inferType 20 type 
+      let (sort, type'?) ← inferType 20 type
       let (sort', pType?) ← ensureSortCore sort type
       let type' ← maybeCast 16 pType? sort sort' (type'?.getD type.toPExpr)
       let val := val.instantiateRev fvars
-      let (valType, val'?) ← inferType 21 val 
+      let (valType, val'?) ← inferType 21 val
       let val' := val'?.getD val.toPExpr
       let ((true, pVal?), valC', _) ← smartCast' 17 valType type' val' |
         throw <| .letTypeMismatch (← getKEnv) (← getLCtx) name valType type'
@@ -1619,7 +1638,7 @@ def reduceProj (structName : Name) (projIdx : Nat) (struct : PExpr) (cheapK : Bo
   -- -- if not, we will need to use a different patch theorem
   -- let cType ← inferTypePure c
   -- let (.true, cTypeEqstructType?) ← isDefEq cType structType | throw $ .other "unreachable 2"
-  -- c ← maybeCast cTypeEqstructType? lvl cType structType c 
+  -- c ← maybeCast cTypeEqstructType? lvl cType structType c
 
   if let (.lit (.strVal s)) := structN.toExpr then
     structN := Expr.strLitToConstructor s |>.toPExpr
@@ -1729,7 +1748,7 @@ def reduceBinNatOp (op : Name) (f : Nat → Nat → Nat) (a b : PExpr) : RecM (O
   let sorryProof? ← if op == `Nat.gcd && (← readThe Context).opts.kLikeReduction then
       dbg_trace s!"dbg: GCD used: {v1} {v2}"
       pure $ .some $ .sry {u := 1, A := nat, a := a', B := nat, b := b'}
-    else 
+    else
       pure none
   let ret? ← appHEqTrans? app app' result appEqapp'? sorryProof?
 
@@ -1786,7 +1805,7 @@ def reduceNat (e : PExpr) : RecM (Option (PExpr × Option EExpr)) := do
     if f == ``Nat.sub then return ← reduceBinNatOp ``Nat.sub Nat.sub a.toPExpr b.toPExpr
     if f == ``Nat.mul then return ← reduceBinNatOp ``Nat.mul Nat.mul a.toPExpr b.toPExpr
     if f == ``Nat.pow then return ← reduceBinNatOp ``Nat.pow Nat.pow a.toPExpr b.toPExpr
-    if f == ``Nat.gcd then 
+    if f == ``Nat.gcd then
       unless (← readThe Context).opts.kLikeReduction do return ← reduceBinNatOp ``Nat.gcd Nat.gcd a.toPExpr b.toPExpr
       let (a', _) := (← whnf 36 a.toPExpr)
       let (b', _) := (← whnf 37 b.toPExpr)
@@ -1856,8 +1875,8 @@ def tryEtaExpansionCore (t s : PExpr) : RecB := do
 @[inherit_doc tryEtaExpansionCore]
 def tryEtaExpansion (t s : PExpr) : RecB := do
   match ← tryEtaExpansionCore t s with
-  | ret@(true, _) => pure ret 
-  | (false, _) => 
+  | ret@(true, _) => pure ret
+  | (false, _) =>
     let (true, sEqt?) ← tryEtaExpansionCore s t | return (false, none)
     return (true, ← appHEqSymm? sEqt?)
 
@@ -1884,7 +1903,7 @@ def tryEtaStructCore (t s : PExpr) : RecB := do
   for i in [fInfo.numParams:args.size] do
     exptE := mkApp exptE (.proj fInfo.induct (i - fInfo.numParams) t)
   let expt := exptE.toPExpr
-  
+
   let tEqexpt? := none -- TODO use proof here to eliminate struct eta
   let (true, exptEqs?) ← isDefEqApp 4 expt s | return (false, none) -- TODO eliminate struct eta
   return (true, ← appHEqTrans? t expt s tEqexpt? exptEqs?)
@@ -1916,7 +1935,7 @@ private def _whnfCore' (_e : Expr) (cheapK := false) (cheapProj := false) : RecE
   let e := _e.toPExpr
   match _e with
   | .bvar .. | .sort .. | .mvar .. | .forallE .. | .const .. | .lam .. | .lit .. => return (e, none)
-  | .mdata _ e => 
+  | .mdata _ e =>
     return ← _whnfCore' e cheapK cheapProj
   | .fvar id => if !isLetFVar (← getLCtx) id then return (e, none)
   | .app .. | .letE .. | .proj .. => pure ()
@@ -2135,12 +2154,12 @@ to `isDefEq`.
 -/
 def lazyDeltaReductionStep (ltn lsn : PExpr) (dbg := false) : RecM ReductionStatus := do
   -- if (← callId) > 384  && ! (← shouldTrace) then
-  --   if ltn.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) || lsn.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) then 
+  --   if ltn.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) || lsn.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) then
   --     throw $ .other "HERE A"
   let env ← getKEnv
   let delta e := do
     let (ne, eEqne?) ← whnfCore 63 (unfoldDefinition env e).get! (cheapK := true) (cheapProj := true)
-    -- if ne.toExpr.containsFVar' (.mk "_kernel_fresh.86".toName) then 
+    -- if ne.toExpr.containsFVar' (.mk "_kernel_fresh.86".toName) then
     --   dbg_trace s!"DBG[44]: TypeChecker.lean:1997 (after if ! e.toExpr.containsFVar (.mk _kernel_…)"
     --   for var in ← getLCtx do
     --     match var with
@@ -2339,7 +2358,7 @@ def isDefEqUnitLike (t s : PExpr) : RecB := do
 @[inherit_doc isDefEqCore]
 def isDefEqCore' (t s : PExpr) : RecM (Bool × (Option EExpr)) := do
   -- if (← callId) > 384  && ! (← shouldTrace) then
-  --   if t.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) || s.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) then 
+  --   if t.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) || s.toExpr.containsFVar' (.mk "_kernel_fresh.37".toName) then
   --     throw $ .other "HERE"
   -- let (ret, usedPI) ← usesPrfIrrel' t s
   -- if not usedPI then
@@ -2359,7 +2378,7 @@ def isDefEqCore' (t s : PExpr) : RecM (Bool × (Option EExpr)) := do
 
   -- let dbg := if let .const ``Nat.repeatTR.loop .. := t.toExpr.getAppFn then true else false
   let dbg := false
-  let mktEqs? (t' s' : PExpr) (tEqt'? sEqs'? t'Eqs'? : Option EExpr) := do 
+  let mktEqs? (t' s' : PExpr) (tEqt'? sEqs'? t'Eqs'? : Option EExpr) := do
     let tEqs'? ← appHEqTrans? t t' s' tEqt'? t'Eqs'?
     let s'Eqs? ← appHEqSymm? sEqs'?
     appHEqTrans? t s' s tEqs'? s'Eqs?
@@ -2380,7 +2399,7 @@ def isDefEqCore' (t s : PExpr) : RecM (Bool × (Option EExpr)) := do
       return (true, ← mktEqs? tn sn tEqtn? sEqsn? tnEqsn?)
 
   let (r, tnEqsn?) ← isDefEqProofIrrel tn sn
-  if r != .undef then 
+  if r != .undef then
     if r == .true then
       return (true, ← mktEqs? tn sn tEqtn? sEqsn? tnEqsn?)
     return (false, none)
@@ -2474,7 +2493,7 @@ def isDefEqCore' (t s : PExpr) : RecM (Bool × (Option EExpr)) := do
 
   let r ← tryStringLitExpansion tn' sn'
   if r != .undef then
-    if r == .true then 
+    if r == .true then
       return (true, ← mktEqs? tn' sn' tEqtn'? sEqsn'? none)
     else
       return (false, none)
