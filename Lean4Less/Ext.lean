@@ -7,7 +7,7 @@ open Lean
 
 -- def cond : Expr → Expr → Bool
 -- | .forallE _ _ tbod _, .forallE _ _ sbod _ => cond tbod sbod
--- | tbod, sbod => 
+-- | tbod, sbod =>
 --   let tf := tbod.getAppFn
 --   let sf := sbod.getAppFn
 --   let tArgs := tbod.getAppArgs
@@ -23,7 +23,7 @@ open Lean
 --
 def _cond : Nat → Expr → Bool
 | n + 1, .lam _ _ tbod _ => _cond n tbod
-| 0, tbod => 
+| 0, tbod =>
   if false then
     false
   else
@@ -97,10 +97,20 @@ structure ExtMethods (m : Type → Type u) where
   isDefEqLambda (t s : PExpr) : m (Bool × Option EExpr)
   withNoCache {T : Type} : m T → m T
 
+/--
+  For every inductive type, we have an `IotaReductionData`
+  that maps the name of a constructor for the inductive type
+  to the theorem that proves its reduction.
+-/
+structure IotaReductionData where
+  reductionThm : Std.HashMap Name Name
+
 structure TypeCheckerOpts where
   proofIrrelevance := true
   kLikeReduction := true
   structLikeReduction := true
+  /-- Map the name of an inductive type to its `IotaReductionData` -/
+  iotaReduction : Std.HashMap Name IotaReductionData := {}
 
 inductive CallData where
 |  isDefEqCore : PExpr → PExpr → CallData
@@ -151,7 +161,7 @@ variable [Monad m] [MonadLCtx m] [MonadExcept KernelException m] [MonadNameGener
 def replaceFType (meth : ExtMethodsR m) (fType newfType : Expr) (args : Array Expr) : m (Array (PExpr × Option EExpr)) := do
   let rec loop (newType type : Expr) (n : Nat) ret := do
     match (← meth.whnfPure 118 newType.toPExpr).toExpr, (← meth.whnfPure 119 type.toPExpr).toExpr, n with
-    | .forallE _ newDom newBody _, .forallE _ dom body _, m + 1 => 
+    | .forallE _ newDom newBody _, .forallE _ dom body _, m + 1 =>
       let idx := args.size - n
       let arg := args[idx]!.toPExpr
       let ((true, _), newArg, argEqnewArg??) ← if not (← meth.isDefEqPure 0 dom.toPExpr newDom.toPExpr) then meth.smartCast 101 dom.toPExpr newDom.toPExpr arg else pure ((true, none), arg, .some none)| unreachable!
@@ -170,7 +180,7 @@ def replaceParams (meth : ExtMethodsR m) (fType : Expr) (params : Array Expr) (n
   let numParams := params.size
   let rec loop (type origType : Expr) (n : Nat) := do
     match (← meth.whnfPure 116 type.toPExpr).toExpr, (← meth.whnfPure 117 origType.toPExpr).toExpr, n with
-  | .forallE _ _ newBody _, .forallE _ _ body _, m + 1 => 
+  | .forallE _ _ newBody _, .forallE _ _ body _, m + 1 =>
     let idx := numParams - n
     let param := params[idx]!
     let newParam := newParams[idx]!

@@ -73,8 +73,7 @@ def ppConst (env : Kernel.Environment) (n : Name) : IO Unit := do
 The set of all constants used to patch terms, in linearised order based on
 dependencies in the patched versions of their types/values.
 -/
-def patchConsts : Array Name := #[
-`L4L.nat_iota_succ,
+def patchConstsInitial : Array Name := #[
 `L4L.prfIrrel,
 `L4L.forallEqUV',
 `L4L.appArgEq,
@@ -125,6 +124,16 @@ def patchConsts : Array Name := #[
 `sorryAx --FIXME
 ]
 
+def constsFromIotaReduction (iotaReduction : Std.HashMap Name IotaReductionData) := Id.run do
+  let mut consts := []
+  for (_, reductionData) in iotaReduction do
+    for (_, reductionThm) in reductionData.reductionThm do
+      consts := reductionThm :: consts
+  return consts.toArray
+
+def patchConsts (opts : TypeCheckerOpts) : Array Name :=
+  (constsFromIotaReduction opts.iotaReduction) ++ patchConstsInitial
+
 def constOverrides' : Array (Name × Name) := #[
   (`eq_of_heq, `L4L.eq_of_heq)
   -- , (`Nat.eq_or_lt_of_le, `L4L.Nat.eq_or_lt_of_le)
@@ -160,7 +169,7 @@ def getOverrides (env : Kernel.Environment) : Std.HashMap Name ConstantInfo :=
 
 def transL4L' (ns : Array Name) (env : Kernel.Environment) (pp := false) (printProgress := false) (interactive := false) (opts : TypeCheckerOpts := {}) (dbgOnly := false) : IO Environment := do
   let map := ns.foldl (init := default) fun acc n => .insert acc n
-  let (_, newEnv) ← checkConstants (printErr := true) (Environment.ofKernelEnv env.toMap₁) map (@Lean4Less.addDecl (opts := opts)) (initConsts := patchConsts) (op := "patch") (printProgress := printProgress) (interactive := interactive) (overrides := getOverrides env) (dbgOnly := dbgOnly)
+  let (_, newEnv) ← checkConstants (printErr := true) (Environment.ofKernelEnv env.toMap₁) map (@Lean4Less.addDecl (opts := opts)) (initConsts := patchConsts opts) (op := "patch") (printProgress := printProgress) (interactive := interactive) (overrides := getOverrides env) (dbgOnly := dbgOnly)
   for n in ns do
     if pp then
       ppConst newEnv.toKernelEnv n
@@ -203,8 +212,19 @@ elab "#check_only " i:ident : command => do
 elab "#check_off " i:ident : command => do
   _ ← checkConstants (printErr := true) (← getEnv) (.insert default i.getId) Lean4Lean.addDecl (opts := {proofIrrelevance := false, kLikeReduction := false}) (interactive := true) (overrides := getOverrides (← getEnv).toKernelEnv)
 
-elab "#check_l4l " i:ident : command => do
-  _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true)
+open Lean.Parser.Tactic
+
+syntax "#check_l4l " ident optConfig : command
+
+declare_command_config_elab elabTypeCheckerOpts TypeCheckerOpts
+
+elab_rules : command
+  | `(command| #check_l4l $i) => do
+    _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true)
+  | `(command| #check_l4l $i $config) => do
+    let opts ← elabTypeCheckerOpts config
+    _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true) (opts := opts)
+
 
 end Lean4Less
   -- match macroRes with

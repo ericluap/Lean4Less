@@ -385,11 +385,10 @@ deriving Inhabited
   that an applied recursor is equal to its iota reduction.
 -/
 structure IotaData where
-  u : Level
-  motive : Q(Nat → Sort $u)
-  zero : Q($motive Nat.zero)
-  succ : Q((n : Nat) → $motive n → $motive n.succ)
-  major : Q(Nat)
+  levels : List Level
+  recArgs : Array Expr
+  majorArgs : Array Expr
+  reductionThm : Name
 
 /--
 Structured data representing expressions for proofs of equality.
@@ -824,8 +823,8 @@ def CastData.toExpr : CastData EExpr → EM Expr
   into an actual proof of an iota reduction.
 -/
 def IotaData.toExpr : IotaData → EM Expr
-| {u, motive, zero, succ, major} =>
-  pure q(L4L.nat_iota_succ (motive := $motive) $zero $succ $major)
+| {levels, recArgs, majorArgs, reductionThm} =>
+  pure <| mkAppN (mkConst reductionThm levels) (recArgs ++ majorArgs)
 
 def EExpr.ctorName : EExpr → Name
   | .lam .. => `lam

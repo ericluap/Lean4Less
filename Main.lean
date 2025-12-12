@@ -238,7 +238,7 @@ unsafe def runTransCmd (p : Parsed) : IO UInt32 := do
           saveModuleData modPath env.mainModule data
 
         IO.println s!">>init module"
-        let patchConsts ← getDepConstsEnv lemmEnv Lean4Less.patchConsts overrides
+        let patchConsts ← getDepConstsEnv lemmEnv (Lean4Less.patchConsts opts) overrides
         let (kenv, aborted) ← replay (Lean4Less.addDecl (opts := opts)) {newConstants := patchConsts, opts := {}, overrides} (← mkEmptyEnvironment).toKernelEnv (printProgress := true) (op := "patch") (aborted := aborted)
         let env := updateBaseAfterKernelAdd lemmEnv kenv
         mkMod #[] env patchPreludeModName
@@ -364,5 +364,17 @@ def zero : motive 0 := Unit
 def succ (n : Nat) (_ : motive n) := Unit
 theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) :
   False := f t
+theorem test3 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 0) :
+  False := f t
 
-#check_l4l test2
+def natIotaReductionData : IotaReductionData where
+  reductionThm := (∅ : Std.HashMap Name Name)
+    |>.insert ``Nat.succ ``L4L.nat_iota_succ
+    |>.insert ``Nat.zero ``L4L.nat_iota_zero
+
+def iotaReduction : Std.HashMap Name IotaReductionData :=
+  (∅ : Std.HashMap Name IotaReductionData)
+  |>.insert ``Nat.rec natIotaReductionData
+
+#check_l4l test2 (iotaReduction := iotaReduction)
+#check_l4l test3 (iotaReduction := iotaReduction)

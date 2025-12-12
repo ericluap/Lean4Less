@@ -103,18 +103,18 @@ def getRecRuleFor (rval : RecursorVal) (major : Expr) : Option RecursorRule := d
   let .const fn _ := major.getAppFn | none
   rval.rules.find? (·.ctor == fn)
 
-def constructIotaReductionProof (recFn : Name) (newRecArgs majorArgs : Array Expr)
-    (major : Expr) (ls : List Level) : Option EExpr :=
-  if recFn == ``Nat.rec then
-    EExpr.iota {
-      u := ls[0]!
-      motive := newRecArgs[0]!
-      zero := newRecArgs[1]!
-      succ := newRecArgs[2]!
-      major := majorArgs[0]!
-    }
-  else
-    none
+def constructIotaReductionProof (opts : Std.HashMap Name IotaReductionData)
+    (recFn : Name) (recArgs majorArgs : Array Expr) (major : Expr)
+    (ls : List Level) : Option EExpr := do
+  let .const majorName _ := major.getAppFn | none
+  let .some reductionMap := opts[recFn]? | none
+  let .some reductionThm := reductionMap.reductionThm[majorName]? | none
+  EExpr.iota {
+    levels := ls
+    recArgs := recArgs
+    majorArgs := majorArgs
+    reductionThm := reductionThm
+  }
 
 /--
 Performs recursor reduction on `e` (returning `none` if not applicable).
@@ -284,7 +284,9 @@ def inductiveReduceRec [Monad m] [MonadLCtx m] [MonadExcept Kernel.Exception m] 
     `eNewMajor_eq_rhs?` is a proof that the application of the recursor to the
     new arguments is equal to its iota reduced version.
   -/
-  let eNewMajorEqrhs? := constructIotaReductionProof recFnName newRecArgs majorArgs majorMaybeCtor ls
+  let eNewMajorEqrhs? := constructIotaReductionProof (← readThe Context).opts.iotaReduction
+    recFnName newRecArgs[0...info.getFirstIndexIdx]
+    majorArgs[(majorArgs.size - rule.nfields)...majorArgs.size] majorMaybeCtor ls
 
   /-
     Given the proofs that the old recursor arguments are equal to the
