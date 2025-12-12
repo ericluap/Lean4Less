@@ -127,7 +127,7 @@ def patchConstsInitial : Array Name := #[
 def constsFromIotaReduction (iotaReduction : Std.HashMap Name IotaReductionData) := Id.run do
   let mut consts := []
   for (_, reductionData) in iotaReduction do
-    for (_, reductionThm) in reductionData.reductionThm do
+    for (_, reductionThm) in reductionData do
       consts := reductionThm :: consts
   return consts.toArray
 
@@ -175,12 +175,13 @@ def transL4L' (ns : Array Name) (env : Kernel.Environment) (pp := false) (printP
       ppConst newEnv.toKernelEnv n
   pure newEnv
 
-def transL4L (n : Array Name) (env? : Option Kernel.Environment := none) : Lean.Elab.Command.CommandElabM Environment := do
+def transL4L (n : Array Name) (env? : Option Kernel.Environment := none)
+  (opts : TypeCheckerOpts := {}) : Lean.Elab.Command.CommandElabM Environment := do
   let env ← env?.getDM (do
       let e ← getEnv
       pure e.toKernelEnv
     )
-  transL4L' n env
+  transL4L' n env (opts := opts)
 
 def checkL4L (ns : Array Name) (env : Kernel.Environment) (printOutput := true) (printProgress := false) (interactive := false) (opts : TypeCheckerOpts := {}) (dbgOnly := false) (deps := false) : IO Environment := do
   let env ← transL4L' ns env (pp := printOutput) (printProgress := printProgress) (interactive := interactive) (opts := opts) (dbgOnly := dbgOnly)
@@ -203,35 +204,35 @@ def checkL4L (ns : Array Name) (env : Kernel.Environment) (printOutput := true) 
   --     throw $ IO.userError $ s!"failed round-trip test: \n--- LHS\n {← ppConst env n} \n--- RHS\n {← ppConst env' n}"
   pure checkEnv
 
-elab "#trans_l4l " i:ident : command => do
-  _ ← transL4L #[i.getId]
-
-elab "#check_only " i:ident : command => do
-  _ ← checkConstants (printErr := true) (← getEnv) (.insert default i.getId) (Lean4Lean.addDecl (verbose := true)) (opts := {}) (interactive := true) (overrides := getOverrides (← getEnv).toKernelEnv)
-
-elab "#check_off " i:ident : command => do
-  _ ← checkConstants (printErr := true) (← getEnv) (.insert default i.getId) Lean4Lean.addDecl (opts := {proofIrrelevance := false, kLikeReduction := false}) (interactive := true) (overrides := getOverrides (← getEnv).toKernelEnv)
-
 open Lean.Parser.Tactic
-
-syntax "#check_l4l " ident optConfig : command
-
 declare_command_config_elab elabTypeCheckerOpts TypeCheckerOpts
 
-elab_rules : command
-  | `(command| #check_l4l $i) => do
-    _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true)
-  | `(command| #check_l4l $i $config) => do
-    let opts ← elabTypeCheckerOpts config
-    _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true) (opts := opts)
+def convertTypeCheckerOpts (opts : TypeCheckerOpts) : Lean.TypeCheckerOpts where
+  proofIrrelevance := opts.proofIrrelevance
+  kLikeReduction := opts.kLikeReduction
+  structLikeReduction := opts.structLikeReduction
+  iotaReduction := opts.iotaReduction.keys.foldl (fun acc n => acc.insert n) ∅
 
+elab "#trans_l4l " i:ident config:optConfig : command => do
+  let opts ← elabTypeCheckerOpts config
+  _ ← transL4L #[i.getId] (opts := opts)
+
+elab "#check_only " i:ident config:optConfig : command => do
+  let opts := convertTypeCheckerOpts (← elabTypeCheckerOpts config)
+  _ ← checkConstants (printErr := true) (← getEnv) (.insert default i.getId)
+    (Lean4Lean.addDecl (verbose := true)) (opts := opts) (interactive := true)
+    (overrides := getOverrides (← getEnv).toKernelEnv)
+
+elab "#check_off " i:ident config:optConfig : command => do
+  let opts := convertTypeCheckerOpts (← elabTypeCheckerOpts config)
+  let opts := {opts with proofIrrelevance := false, kLikeReduction := false}
+  _ ← checkConstants (printErr := true) (← getEnv) (.insert default i.getId)
+    Lean4Lean.addDecl (opts := opts)
+    (interactive := true) (overrides := getOverrides (← getEnv).toKernelEnv)
+
+
+elab "#check_l4l" i:ident config:optConfig : command => do
+  let opts ← elabTypeCheckerOpts config
+  _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true) (opts := opts)
 
 end Lean4Less
-  -- match macroRes with
-  -- | some (name, _) => logInfo s!"Next step is a macro: {name.toString}"
-  -- | none =>
-  --   let kind := c.raw.getKind
-  --   let elabs := commandElabAttribute.getEntries (←getEnv) kind
-  --   match elabs with
-  --   | [] => logInfo s!"There is no elaborators for your syntax, looks like its bad :("
-  --   | _ => logInfo s!"Your syntax may be elaborated by: {elabs.map (fun el => el.declName.toString)}"

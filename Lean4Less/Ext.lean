@@ -98,18 +98,17 @@ structure ExtMethods (m : Type → Type u) where
   withNoCache {T : Type} : m T → m T
 
 /--
-  For every inductive type, we have an `IotaReductionData`
+  For every recursor, we have an `IotaReductionData`
   that maps the name of a constructor for the inductive type
   to the theorem that proves its reduction.
 -/
-structure IotaReductionData where
-  reductionThm : Std.HashMap Name Name
+abbrev IotaReductionData := Std.HashMap Name Name
 
 structure TypeCheckerOpts where
   proofIrrelevance := true
   kLikeReduction := true
   structLikeReduction := true
-  /-- Map the name of an inductive type to its `IotaReductionData` -/
+  /-- Map the name of a recursor to its `IotaReductionData` -/
   iotaReduction : Std.HashMap Name IotaReductionData := {}
 
 inductive CallData where

@@ -367,8 +367,8 @@ theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) 
 theorem test3 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 0) :
   False := f t
 
-def natIotaReductionData : IotaReductionData where
-  reductionThm := (∅ : Std.HashMap Name Name)
+def natIotaReductionData : IotaReductionData :=
+  (∅ : Std.HashMap Name Name)
     |>.insert ``Nat.succ ``L4L.nat_iota_succ
     |>.insert ``Nat.zero ``L4L.nat_iota_zero
 
@@ -378,3 +378,4 @@ def iotaReduction : Std.HashMap Name IotaReductionData :=
 
 #check_l4l test2 (iotaReduction := iotaReduction)
 #check_l4l test3 (iotaReduction := iotaReduction)
+#check_off test2 (iotaReduction := iotaReduction)

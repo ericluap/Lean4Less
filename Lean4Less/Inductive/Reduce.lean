@@ -108,7 +108,7 @@ def constructIotaReductionProof (opts : Std.HashMap Name IotaReductionData)
     (ls : List Level) : Option EExpr := do
   let .const majorName _ := major.getAppFn | none
   let .some reductionMap := opts[recFn]? | none
-  let .some reductionThm := reductionMap.reductionThm[majorName]? | none
+  let .some reductionThm := reductionMap[majorName]? | none
   EExpr.iota {
     levels := ls
     recArgs := recArgs

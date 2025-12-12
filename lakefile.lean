@@ -8,7 +8,7 @@ require "leanprover-community" / "Qq" @ git "master"
 
 -- require lean4lean from "/home/rvaishna/projects/lean4lean/"
 
-require lean4lean from git "https://github.com/rish987/lean4lean" @ "lean4less"
+require lean4lean from git "https://github.com/ericluap/lean4lean" @ "lean4less"
 
 require Cli from git
   "https://github.com/leanprover/lean4-cli" @ "v4.26.0-rc2"
