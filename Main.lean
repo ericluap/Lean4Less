@@ -357,25 +357,37 @@ unsafe def transCmd : Cmd := `[Cli|
 unsafe def main (args : List String) : IO UInt32 := do
   transCmd.validate args
 
-theorem test (P : Prop) (p q : P) : p = q := rfl
+/- Theorems for patching iota reduction -/
 
-def motive (_ : Nat) := Type
-def zero : motive 0 := Unit
-def succ (n : Nat) (_ : motive n) := Unit
-theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) :
-  False := f t
-theorem test3 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 0) :
-  False := f t
+theorem nat_iota_zero {motive : Nat → Sort u} (zero : motive Nat.zero)
+  (succ : (n : Nat) → (ih : motive n) → motive (n.succ)) :
+  Nat.rec (motive := motive) zero succ 0 ≍ zero := by rfl
+
+theorem nat_iota_succ {motive : Nat → Sort u} (zero : motive Nat.zero)
+  (succ : (n : Nat) → (ih : motive n) → motive n.succ) (t : Nat) :
+  Nat.rec (motive := motive) zero succ t.succ ≍
+  succ t (Nat.rec (motive := motive) zero succ t) := by rfl
+
+/- Set up the information for using those iota reduction theorem -/
 
 def natIotaReductionData : IotaReductionData :=
   (∅ : Std.HashMap Name Name)
-    |>.insert ``Nat.succ ``L4L.nat_iota_succ
-    |>.insert ``Nat.zero ``L4L.nat_iota_zero
+    |>.insert ``Nat.succ ``nat_iota_succ
+    |>.insert ``Nat.zero ``nat_iota_zero
 
 def iotaReduction : Std.HashMap Name IotaReductionData :=
   (∅ : Std.HashMap Name IotaReductionData)
   |>.insert ``Nat.rec natIotaReductionData
 
+/- Test patching iota reduction-/
+def motive := fun (_ : Nat) => Type
+def zero := Unit
+def succ (n : Nat) (_ : motive n) := Unit
+
+theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) :
+  False := f t
+theorem test3 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 0) :
+  False := f t
+
 #check_l4l test2 (iotaReduction := iotaReduction)
 #check_l4l test3 (iotaReduction := iotaReduction)
-#check_off test2 (iotaReduction := iotaReduction)

@@ -309,15 +309,4 @@ def castOrigHEqSymm {α β : Sort u} (h : HEq α β) (a : α) : HEq a (castHEq h
 
 def HEqRefl {α : Sort u} (a : α) : HEq a a := HEq.refl a
 
-/- Theorems for patching iota reduction -/
-
-theorem nat_iota_zero {motive : Nat → Sort u} (zero : motive Nat.zero)
-  (succ : (n : Nat) → (ih : motive n) → motive (n.succ)) :
-  Nat.rec (motive := motive) zero succ 0 ≍ zero := by rfl
-
-theorem nat_iota_succ {motive : Nat → Sort u} (zero : motive Nat.zero)
-  (succ : (n : Nat) → (ih : motive n) → motive n.succ) (t : Nat) :
-  Nat.rec (motive := motive) zero succ t.succ ≍
-  succ t (Nat.rec (motive := motive) zero succ t) := by rfl
-
 end L4L
