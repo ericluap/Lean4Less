@@ -389,5 +389,5 @@ theorem test2 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 1) 
 theorem test3 (f : Unit → False) (t : Nat.rec (motive := motive) zero succ 0) :
   False := f t
 
-#check_l4l test2 (iotaReduction := iotaReduction)
-#check_l4l test3 (iotaReduction := iotaReduction)
+#patch_const test2 (iotaReduction := iotaReduction) -kLikeReduction -proofIrrelevance
+#patch_const test3 (iotaReduction := iotaReduction) -kLikeReduction -proofIrrelevance

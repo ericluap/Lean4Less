@@ -230,9 +230,16 @@ elab "#check_off " i:ident config:optConfig : command => do
     Lean4Lean.addDecl (opts := opts)
     (interactive := true) (overrides := getOverrides (← getEnv).toKernelEnv)
 
-
 elab "#check_l4l" i:ident config:optConfig : command => do
   let opts ← elabTypeCheckerOpts config
   _ ← checkL4L #[i.getId] (← getEnv).toKernelEnv (interactive := true) (opts := opts)
+
+elab "#patch_const" i:ident config:optConfig : command => do
+  let opts ← elabTypeCheckerOpts config
+  let constInfo ← getConstInfo i.getId
+  let patched := Kernel.Environment.patchDecl (← getEnv).toKernelEnv constInfo (opts := opts)
+  match patched with
+  | .ok res => Lean.logInfo m!"{res.value!}"
+  | .error e => Lean.logInfo m!"failed patching with error {e.toMessageData {}}"
 
 end Lean4Less

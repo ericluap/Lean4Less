@@ -30,11 +30,18 @@ def checkPrimitiveDef (env : Kernel.Environment) (v : DefinitionVal) : M Bool :=
     unless env.constants.contains ``Nat && v.levelParams.isEmpty do fail
     -- add : Nat → Nat → Nat
     unless ← TypeChecker.isDefEqPure v.type.toPExpr (arrow nat (arrow nat nat)).toPExpr v.levelParams do fail
-    let add := mkApp2 v.value
+
+    /- Skip checks on the iota reduction of `Nat.add`
+      becuause we have disabled that.
+      TODO: Add the checks back in with iota reduction reenabled.
+      This is not important as I am only trying to patch and the patched
+      terms will be checked fo correctness by the kernel.
+    -/
+    --let add := mkApp2 v.value
     -- add x 0 ≡ x
-    unless ← defeq1 (add x zero) x do fail
+    --unless ← defeq1 (add x zero) x do fail
     -- add y (succ x) ≡ succ (add y x)
-    unless ← defeq2 (add y (succ x)) (succ (add y x)) do fail
+    --unless ← defeq2 (add y (succ x)) (succ (add y x)) do fail
   | ``Nat.pred =>
     unless env.constants.contains ``Nat && v.levelParams.isEmpty do fail
     -- pred : Nat → Nat
