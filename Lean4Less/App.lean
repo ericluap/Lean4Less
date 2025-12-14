@@ -114,7 +114,7 @@ def mkAppEqProof? (aVars bVars : Array LocalDecl) (us vs : Array Level) (Uas Vbs
     g := g.toExpr.app b |>.toPExpr
   pure fEqg?
 
-def mkAppEqProof (TLam SLam : PExpr) (TVarLams SVarLams : Array ((Array Nat) × Name × BinderInfo × PExpr)) (TEqS? : Option EExpr) (as bs : Array PExpr) (asEqbs? : Array (Option EExpr)) (f g : PExpr) (usedLets' : FVarIdSet) (fEqg? : Option EExpr := none) : m (Option EExpr) := do
+def mkAppEqProof (TLam SLam : PExpr) (TVarLams SVarLams : Array ((Array Nat) × Name × BinderInfo × PExpr)) (_ : Option EExpr) (as bs : Array PExpr) (asEqbs? : Array (Option EExpr)) (f g : PExpr) (usedLets' : FVarIdSet) (fEqg? : Option EExpr := none) : m (Option EExpr) := do
   let rec loop (idx : Nat) aVars bVars Uas Vbs UasEqVbs? ds? us vs : m (Option EExpr) := do
     -- try
     --   let fType ← meth.inferTypePure 2071 (Lean.mkAppN f.toExpr (as[:idx].toArray.map (·.toExpr))).toPExpr -- sanity check TODO remove
@@ -177,7 +177,7 @@ def mkAppEqProof (TLam SLam : PExpr) (TVarLams SVarLams : Array ((Array Nat) × 
     let sort ← meth.inferTypePure 213 A
     let .sort u := (← meth.ensureSortCorePure sort A).toExpr | throw $ .other "unreachable 5"
     meth.withNewFVar 201 aName A aBi fun aVar => do
-      let cont d? bVar := do 
+      let cont d? bVar := do
         let ds? := ds?.push d?
 
         let TLamInitArgs := as[:idx].toArray.push aVar.toExpr.toPExpr
@@ -223,7 +223,7 @@ def mkAppEqProof (TLam SLam : PExpr) (TVarLams SVarLams : Array ((Array Nat) × 
           let ret ← mkAppEqProof? meth aVars bVars us vs Uas Vbs UasEqVbs? ds? as bs asEqbs? f g usedLets' fEqg?
           pure ret
 
-      if let some AEqB := AEqB? then 
+      if let some AEqB := AEqB? then
         meth.withNewFVar 202 bName B bBi fun bVar => do
           let teqsType := mkAppN (.const `HEq [u]) #[A, aVar.toExpr, B, bVar.toExpr]
           let seqtType := mkAppN (.const `HEq [u]) #[B, bVar.toExpr, A, aVar.toExpr]
@@ -248,7 +248,7 @@ def binAbs (max : Nat) (tfT' sfT' : Expr) (lambda : Bool) : m
      Array (Option EExpr) × Std.HashSet Nat)) := do
   let rec loop tfT sfT tDomsVars tDoms sDomsVars sDoms tDomsEqsDoms (absArgs' : Std.HashSet Nat) idx' (origDomVars origDomVarsAbs : Array (FVarId × FVarId)) (origDomVarsRefs : Std.HashMap (FVarId × FVarId) (Std.HashSet (FVarId × FVarId))) (origDomVarsToNewDomVars : Std.HashMap (FVarId × FVarId) (FVarId × FVarId)) := do
 
-    let withMaybeAbs tBod sBod usesPrfIrrel f (tName := `tT) (sName := `sT) (tBi := default) (sBi := default) := do 
+    let withMaybeAbs tBod sBod usesPrfIrrel f (tName := `tT) (sName := `sT) (tBi := default) (sBi := default) := do
       if usesPrfIrrel || origDomVarsAbs.any (tBod.containsFVar' ·.1) || origDomVarsAbs.any (sBod.containsFVar' ·.2) then
         let mut depVars := #[]
         let mut origDepVars := #[]
@@ -294,7 +294,7 @@ def binAbs (max : Nat) (tfT' sfT' : Expr) (lambda : Bool) : m
       else
         f none tDomsVars sDomsVars tDoms sDoms tDomsEqsDoms
 
-    let cont tBod sBod := do 
+    let cont tBod sBod := do
       let (true, tBodEqsBod?) ← meth.isDefEq 0 tBod.toPExpr sBod.toPExpr |
         return none
       withMaybeAbs tBod sBod tBodEqsBod?.isSome fun newtsBod? tDomsVars sDomsVars tDoms sDoms tDomsEqsDoms => do
@@ -359,7 +359,7 @@ def binAbs (max : Nat) (tfT' sfT' : Expr) (lambda : Bool) : m
                 let some tVar := (← getLCtx).find? idt | unreachable!
                 let some sVar := (← getLCtx).find? ids | unreachable!
                 meth.withNewFVar 211 default teqsType.toPExpr default fun idtEqs => do
-                  meth.withNewFVar 212 default seqtType.toPExpr default fun idsEqt => do
+                  meth.withNewFVar 212 default seqtType.toPExpr default fun _ => do
                     let some vtEqs := (← getLCtx).find? idtEqs | unreachable!
                     withEqFVar idt ids {aEqb := vtEqs, bEqa := default, a := tVar.toExpr.toPExpr, b := sVar.toExpr.toPExpr, A := tDom.toPExpr, B := sDom.toPExpr, u := lvl} do
                       cont' idt ids
@@ -382,7 +382,7 @@ def lamAbs (max : Nat) (tfT' sfT' : Expr) : m
      Array (Option EExpr) × Std.HashSet Nat)) := binAbs meth max tfT' sfT' true
 
 mutual
-def deconstructAppHEq' (n : Nat) (t s : PExpr) (tEqs : EExpr) (T? : Option PExpr) : m (Option (Array PExpr × Array PExpr × Array (Option EExpr) × Array (FVarId × Name × PExpr) × Array (FVarId × Name × PExpr) × PExpr × PExpr)) :=
+def deconstructAppHEq' (_ : Nat) (t s : PExpr) (tEqs : EExpr) (T? : Option PExpr) : m (Option (Array PExpr × Array PExpr × Array (Option EExpr) × Array (FVarId × Name × PExpr) × Array (FVarId × Name × PExpr) × PExpr × PExpr)) :=
   let defCase := do
     if let some T := T? then
       let tVar := (⟨← meth.mkIdNew 217⟩, default, T)
@@ -390,7 +390,7 @@ def deconstructAppHEq' (n : Nat) (t s : PExpr) (tEqs : EExpr) (T? : Option PExpr
       pure $ .some (#[t], #[s], #[.some tEqs], #[tVar], #[sVar], Expr.fvar tVar.1 |>.toPExpr, Expr.fvar sVar.1 |>.toPExpr)
     else pure none
   do match tEqs with
-  | .app d => 
+  | .app d =>
     let ret ← deconstructAppHEq d
     if ret.isSome then
       pure ret
@@ -402,10 +402,10 @@ def deconstructAppHEq : AppData EExpr
   → m (Option (Array PExpr × Array PExpr × Array (Option EExpr) × Array (FVarId × Name × PExpr) × Array (FVarId × Name × PExpr) × PExpr × PExpr))
 | {f, a, extra, A, U, ..} => do
   match extra with
-  | .UVFun {g, fEqg, ..}            => 
+  | .UVFun {g, fEqg, ..}            =>
     let some (tas, sas, taEqsas?, tVars, sVars, f', g') ← deconstructAppHEq' 8 f g fEqg none | return none
     return (tas, sas, taEqsas?, tVars, sVars, f'.app a, g'.app a)
-  | .Fun {g, fEqg, ..}                 => 
+  | .Fun {g, fEqg, ..}                 =>
     let some (tas, sas, taEqsas?, tVars, sVars, f', g') ← deconstructAppHEq' 9 f g fEqg (mkForall #[U.2] U.1) | return none
     return (tas, sas, taEqsas?, tVars, sVars, f'.app a, g'.app a)
   | _ => pure ()
@@ -426,11 +426,11 @@ def deconstructAppHEq : AppData EExpr
     let some (tas, sas, taEqsas?, tVars, sVars, f', g') ← deconstructAppHEq' 2 f g fEqg none | return none
     let some (tas', sas', taEqsas?', tVars', sVars', a', b') ← deconstructAppHEq' 3 a b aEqb A | return none
     pure (tas ++ tas', sas ++ sas', taEqsas? ++ taEqsas?', tVars ++ tVars', sVars ++ sVars', f'.app a', g'.app b')
-  | .AB {g, fEqg, b, aEqb, ..}      => 
+  | .AB {g, fEqg, b, aEqb, ..}      =>
     let some (tas, sas, taEqsas?, tVars, sVars, f', g') ← deconstructAppHEq' 4 f g fEqg (mkForall #[U.2] U.1) | return none
     let some (tas', sas', taEqsas?', tVars', sVars', a', b') ← deconstructAppHEq' 5 a b aEqb none | return none
     pure (tas ++ tas', sas ++ sas', taEqsas? ++ taEqsas?', tVars ++ tVars', sVars ++ sVars', f'.app a', g'.app b')
-  | .none {g, fEqg, b, aEqb, ..}        => 
+  | .none {g, fEqg, b, aEqb, ..}        =>
     let some (tas, sas, taEqsas?, tVars, sVars, f', g') ← deconstructAppHEq' 6 f g fEqg (mkForall #[U.2] U.1) | return none
     let some (tas', sas', taEqsas?', tVars', sVars', a', b') ← deconstructAppHEq' 7 a b aEqb A | return none
     pure (tas ++ tas', sas ++ sas', taEqsas? ++ taEqsas?', tVars ++ tVars', sVars ++ sVars', f'.app a', g'.app b')
@@ -453,7 +453,7 @@ def isDefEqAppOpt''' (tf sf : PExpr) (tArgs sArgs : Array PExpr)
       pure ret
     | return (false, none)
 
-  let mkAppEqProof' tVars sVars tArgs' sArgs' taEqsas' tBodFun sBodFun tBodFunEqsBodFun? tBodArgs sBodArgs _tArgsVars _sArgsVars tBodT sBodT tEtaVars sEtaVars idx := do -- FIXME why do I have to pass in the mutable variables?
+  let mkAppEqProof' tVars sVars tArgs' sArgs' taEqsas' tBodFun sBodFun tBodFunEqsBodFun? tBodArgs sBodArgs _tArgsVars _sArgsVars tBodT sBodT tEtaVars sEtaVars _ := do -- FIXME why do I have to pass in the mutable variables?
     if tVars.size > 0 then
       let tLCtx := tVars.foldl (init := (← getLCtx)) fun acc (id, n, (type : PExpr)) => LocalContext.mkLocalDecl acc id n type default
       let sLCtx := sVars.foldl (init := (← getLCtx)) fun acc (id, n, (type : PExpr)) => LocalContext.mkLocalDecl acc id n type default
@@ -703,7 +703,7 @@ def isDefEqAppOpt''' (tf sf : PExpr) (tArgs sArgs : Array PExpr)
       sEtaVars := sEtaVars'
 
       pure (tBoda', sBoda')
-    else 
+    else
       tEtaVars := 0
       sEtaVars := 0
       pure (ta, sa)

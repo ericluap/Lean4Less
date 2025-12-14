@@ -590,8 +590,8 @@ def LamData.toExpr (e : LamData EExpr) : EM Expr := match e with
       let h ← expandLets' alets (← faEqgx.1.toExpr')
       mkLambda #[a] h
 
-    let (args, dep, U) ← match extra with
-    | .ABUV {B, hAB, b, ..} {V} =>
+    let (args, dep, _U) ← match extra with
+    | .ABUV {B, hAB, ..} {V} =>
         let (U, V, dep) ← getMaybeDepLemmaApp2 U V
         -- if dbgFIds.any (· == a.fvarId.name) then
         --   dbg_trace s!"DBG[0]: {a.fvarId.name}, {b.fvarId.name}, {dep}, {Lean.collectFVars default V |>.fvarIds.map (·.name)}"
@@ -792,7 +792,7 @@ def FVarDataE.toExpr : FVarDataE → EM Expr
       pure aEqb.toExpr
 
 def LVarDataE.toExpr : LVarDataE → EM Expr
-| e@({v, u, A, B, a, b, ..}) => do
+| ({v, u, A, B, a, b, ..}) => do
   if (← rev) then
     if (← read).reversedFvars.contains v then
       pure $ .fvar v

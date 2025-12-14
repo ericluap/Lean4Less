@@ -53,7 +53,7 @@ match fuel with
     let mut printedTrace := false
     let mut t := none
     -- t := .some 33496
-    let methPrint := false
+    let _methPrint := false
     -- let methPrint := (← shouldTrace)
     let methPrint := true
     let cond := tr &&

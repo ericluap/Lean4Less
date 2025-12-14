@@ -31,7 +31,7 @@ theorem forallEqUV' {A : Sort u} {U V : A → Sort v}
 -- overrides stdlib's definition of `eq_of_heq`; NOTE: this lemma has been manually translated to Lean⁻
 theorem eq_of_heq {A : Sort u} {a b : A} (h : HEq a b) : @Eq A a b :=
   -- TODO clean this up
-  let_fun this := fun (A B : Sort u) (a : A) (b : B) (hab : HEq a b) =>
+  have this := fun (A B : Sort u) (a : A) (b : B) (hab : HEq a b) =>
     @HEq.rec A a
       (@fun (B : Sort u) (b : B) _ =>
         ∀ (hAB : @Eq (Sort u) A B), @Eq B (@cast A B hAB a) b)

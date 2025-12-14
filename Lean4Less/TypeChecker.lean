@@ -746,7 +746,7 @@ def appHEqTrans? (t s r : PExpr) (theqs? sheqr? : Option EExpr) : RecM (Option E
   | none, .some sheqr => return sheqr
   | .some theqs, none => return theqs
 
-def getLets (n : Nat) (fid : FVarId) : RecM (Array LocalDeclE) := do
+partial def getLets (n : Nat) (fid : FVarId) : RecM (Array LocalDeclE) := do
   let some lets := (← get).fvarsToLets[fid]? | pure #[]
   let mut ret := #[]
   for l in lets.reverse do
@@ -754,8 +754,6 @@ def getLets (n : Nat) (fid : FVarId) : RecM (Array LocalDeclE) := do
     --   dbg_trace s!"DBG[3]: TypeChecker.lean:966 {n}"
     ret := ret.push l ++ (← getLets n l.fvarId)
   pure ret
-decreasing_by
-  sorry -- TODO the index of fid in the local context is guaranteed to increase
 
 def isDefEqForall' (t s : PExpr) (numBinds : Nat) (f : Option EExpr → RecM (Option T)) : RecM (Bool × Option T) := do
   -- assert! numBinds > 0
@@ -1669,7 +1667,7 @@ def isLetFVar (lctx : LocalContext) (fvar : FVarId) : Bool :=
 Checks if `e` has a head constant that can be delta-reduced (that is, it is a
 theorem or definition), returning its `ConstantInfo` if so.
 -/
-def isDelta (env : Kernel.Environment) (e : PExpr) (dbg := false) : Option ConstantInfo := do
+def isDelta (env : Kernel.Environment) (e : PExpr) (_dbg := false) : Option ConstantInfo := do
   if let .const c _ := e.toExpr.getAppFn then
     -- if c != `L4L.eq_of_heq then -- TODO have to block all of the patch theorems?
     if let some ci := env.find? c then
@@ -2240,7 +2238,7 @@ def lazyDeltaReductionStep (ltn lsn : PExpr) (dbg := false) : RecM ReductionStat
         && !failedBefore (← get).failure ltn lsn
       then
         if Level.isEquivList ltn.toExpr.getAppFn.constLevels! lsn.toExpr.getAppFn.constLevels! then
-          let (defeq, usedPI) ← isDefEqArgsLean ltn lsn
+          let (defeq, _usedPI) ← isDefEqArgsLean ltn lsn
           if defeq then
             if true then
               let (r, proof?) ← isDefEqApp 5 ltn lsn (tfEqsf? := none)

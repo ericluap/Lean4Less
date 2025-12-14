@@ -13,7 +13,7 @@ axiom r : P
 
 axiom X : (p : P) → Q p → Q p
 
-def forallEx : Q q → Q q := fun (qp : Q p) => X p qp 
+def forallEx : Q q → Q q := fun (qp : Q p) => X p qp
 
 -- def forallEx' : Q q → Q q :=
 -- @L4L.castHEq (Q p → Q p) (Q q → Q q)
@@ -22,7 +22,7 @@ def forallEx : Q q → Q q := fun (qp : Q p) => X p qp
 --   fun (qp : Q p) => X p qp
 -- def forallEx'' : Q q → Q q :=
 --   fun (qq : Q q) => @L4L.castHEq (Q p) (Q q) (@L4L.appArgHEq P Prop Q p q (L4L.prfIrrel p q))
---                       (X p (@L4L.castHEq (Q q) (Q p) (@L4L.appArgHEq P Prop Q q p (L4L.prfIrrel q p)) qq)) 
+--                       (X p (@L4L.castHEq (Q q) (Q p) (@L4L.appArgHEq P Prop Q q p (L4L.prfIrrel q p)) qq))
 -- #check_off forallEx''
 set_option pp.all true
 -- #print Std.Tactic.BVDecide.BVExpr.bitblast.go
@@ -167,7 +167,7 @@ theorem ex3 : @K.rec (fun _ => Bool) true k = true := rfl
 end tmp
 
 -- K.rec.{u}
---   {motive : K → Sort u} 
+--   {motive : K → Sort u}
 --   (mk : motive K.mk)
 --   (t : K) : motive t
 inductive TT : Nat → Type where
@@ -185,7 +185,7 @@ theorem my_eq_or_lt_of_le {n m: Nat} (h : LE.le n m) : Or (Eq n m) (LT.lt n m) :
   | .succ n, h =>
     match m, h with
     | .zero, h => absurd h (Nat.not_succ_le_zero _)
-    | .succ m, h => 
+    | .succ m, h =>
       have : LE.le n m := Nat.le_of_succ_le_succ h
       match Nat.eq_or_lt_of_le this with
       | Or.inl h => Or.inl (h ▸ rfl)
@@ -203,15 +203,15 @@ variable (x y : Nat) (hxy : x ≤ y)
 set_option pp.explicit true in
 -- #print Nat.gcd
 -- #reduce (proofs := true) my_eq_or_lt_of_le hxy
--- def ktest : (@K.rec (fun _ => Bool) true k) = 
+-- def ktest : (@K.rec (fun _ => Bool) true k) =
 
-axiom k : K 
-axiom k' : K 
+axiom k : K
+axiom k' : K
 axiom BK : Bool → Type
 axiom hk : BK (@K.rec (fun _ => Bool) true k)
 def KT : Type := (@K.rec (fun _ => Type) (Nat → Prop) k)
 axiom Temp : (Nat → KT) → Type
-def temp : Type := Temp (fun n m => P)
+def temp : Type := Temp (fun _ _ => P)
 
 abbrev gcd (m : @& Nat) : Nat :=
   if let Nat.succ m' := m then
@@ -236,11 +236,11 @@ abbrev gcd (m : @& Nat) : Nat :=
 --          (@instWellFoundedRelationOfSizeOf Nat instSizeOfNat)).1 :=
 --    (@invImage ((_ : Nat) ×' Nat) Nat (fun x => @PSigma.casesOn Nat (fun m => Nat) (fun _x => Nat) x fun m n => m)
 --        (@instWellFoundedRelationOfSizeOf Nat instSizeOfNat)).2
--- def h1 := forall {α : Type u} {β : α -> Type v} [A : BEq.{u} α] [B : Hashable α] [C : @LawfulBEq α A] {a : α} {c : Nat}, 
+-- def h1 := forall {α : Type u} {β : α -> Type v} [A : BEq.{u} α] [B : Hashable α] [C : @LawfulBEq α A] {a : α} {c : Nat},
 --   @Eq (Option.{v} (β a)) (@Std.DHashMap.get?.{u, v} α β A B C (@Std.DHashMap.empty.{u, v} α β A B c) a)
 --     (@Std.DHashMap.get?.{u, v} α β A B C (@Std.DHashMap.empty.{u, v} α β A B c) a)
 --
--- def h2 := forall {α : Type u} {β : α -> Type v} [A : BEq.{u} α] [B : Hashable α] [C : @LawfulBEq α A] {a : α} {c : Nat}, 
+-- def h2 := forall {α : Type u} {β : α -> Type v} [A : BEq.{u} α] [B : Hashable α] [C : @LawfulBEq α A] {a : α} {c : Nat},
 --   @Eq (Option.{v} (β a)) (@Std.DHashMap.get?.{u, v} α β A B C (@Std.DHashMap.empty.{u, v} α β A B c) a)
 --     (@Std.DHashMap.Internal.Raw₀.get?.{u, v} α β A C B (@Std.DHashMap.Internal.Raw₀.empty.{u, v} α β c) a)
 
@@ -307,7 +307,7 @@ def letFun' {α : Sort u} {β : α → Sort v} (v : α) (f : (x : α) → β x) 
 -- -- axiom ax' (α : Sort u) (a : α) : BK true → (a' : α) → cast (axh α α) a = a'
 -- axiom Ty : Type
 -- axiom ty : Ty
--- 
+--
 -- noncomputable def eq_of_heq' : cast axh n :=
 --   ax'
 -- -#check_l4l eq_of_heq
@@ -322,7 +322,7 @@ axiom ax' : n → Prop
 axiom Ty : Type
 axiom ty : Ty
 -- noncomputable def eq_of_heq' : Prop :=
---   ax' ax 
+--   ax' ax
 -- #check_l4l eq_of_heq'
 -- set_option pp.explicit true in
 -- #print eq_of_heq'

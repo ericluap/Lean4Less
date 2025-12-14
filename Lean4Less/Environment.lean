@@ -12,7 +12,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 open Lean
 open Lean.Kernel.Environment
 
-def checkConstantVal (env : Kernel.Environment) (v : ConstantVal) (allowPrimitive := false) : M (PExpr) := do
+def checkConstantVal (env : Kernel.Environment) (v : ConstantVal) (_allowPrimitive := false) : M (PExpr) := do
   --env.checkName v.name allowPrimitive
   checkDuplicatedUnivParams v.levelParams
   checkNoMVarNoFVar env v.name v.type
@@ -164,7 +164,7 @@ def patchDecl (env : Kernel.Environment) (decl : ConstantInfo)
   | _ => throw <| .other s!"unsupported declaration kind in {decl.name}"
 
 /-- Type check given declaration and add it to the environment -/
-def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeCheckerOpts := {}) (allowAxiomReplace := false) :
+def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeCheckerOpts := {}) (_allowAxiomReplace := false) :
     Except Kernel.Exception Kernel.Environment := do
   match decl with
   | .axiomDecl v =>
