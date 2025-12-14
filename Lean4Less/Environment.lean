@@ -162,16 +162,6 @@ def patchDecl (env : Kernel.Environment) (decl : ConstantInfo)
   | .thmInfo v => patchTheorem env v false opts
   | .opaqueInfo v => patchOpaque env v opts
   | _ => throw <| .other s!"unsupported declaration kind in {decl.name}"
-  /-| .mutualDefnInfo vs =>
-    let _ ← patchMutual env vs opts
-    throw $ .other "mutual defn"
-  | .quotInfo _ =>
-    let _ ← addQuot env
-    throw $ .other "quot decl"
-  | .inductInfo lparams nparams types isUnsafe =>
-    let allowPrimitive ← checkPrimitiveInductive env lparams nparams types isUnsafe opts
-    let _ ← addInductive env lparams nparams types isUnsafe allowPrimitive
-    throw $ .other "induct decl"-/
 
 /-- Type check given declaration and add it to the environment -/
 def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeCheckerOpts := {}) (allowAxiomReplace := false) :

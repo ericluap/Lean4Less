@@ -204,6 +204,14 @@ def checkL4L (ns : Array Name) (env : Kernel.Environment) (printOutput := true) 
   --     throw $ IO.userError $ s!"failed round-trip test: \n--- LHS\n {← ppConst env n} \n--- RHS\n {← ppConst env' n}"
   pure checkEnv
 
+def patchConst (const : Name) (opts : TypeCheckerOpts) :
+    MetaM ConstantInfo := do
+  let constInfo ← getConstInfo const
+  let patched := Kernel.Environment.patchDecl (← getEnv).toKernelEnv constInfo (opts := opts)
+  match patched with
+  | .ok res => return res
+  | .error e => throwError m!"failed patching with error {e.toMessageData {}}"
+
 open Lean.Parser.Tactic
 declare_command_config_elab elabTypeCheckerOpts TypeCheckerOpts
 
@@ -236,10 +244,7 @@ elab "#check_l4l" i:ident config:optConfig : command => do
 
 elab "#patch_const" i:ident config:optConfig : command => do
   let opts ← elabTypeCheckerOpts config
-  let constInfo ← getConstInfo i.getId
-  let patched := Kernel.Environment.patchDecl (← getEnv).toKernelEnv constInfo (opts := opts)
-  match patched with
-  | .ok res => Lean.logInfo m!"{res.value!}"
-  | .error e => Lean.logInfo m!"failed patching with error {e.toMessageData {}}"
+  let res ← Elab.Command.liftTermElabM <| patchConst i.getId opts
+  Lean.logInfo m!"{res.value!}"
 
 end Lean4Less
