@@ -1,7 +1,8 @@
 import Lake
 open Lake DSL
 
-package lean4less
+package lean4less where
+  testDriver := "tests"
 
 require batteries from git "https://github.com/leanprover-community/batteries" @ "v4.26.0-rc2"
 require "leanprover-community" / "Qq" @ git "master"
@@ -23,3 +24,6 @@ lean_lib Lean4Less
 lean_exe lean4less where
   root := `Main
   supportInterpreter := true
+
+lean_lib tests where
+  globs := #[.submodules `tests]

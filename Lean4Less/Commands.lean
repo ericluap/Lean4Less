@@ -139,21 +139,6 @@ def constOverrides' : Array (Name × Name) := #[
   -- , (`Nat.eq_or_lt_of_le, `L4L.Nat.eq_or_lt_of_le)
 ]
 
--- theorem Nat.eq_or_lt_of_le {n m: Nat} (h : LE.le n m) : Or (Eq n m) (LT.lt n m) :=
---   match n, h with
---   | .zero, _ =>
---     match m with
---     | .zero => Or.inl rfl
---     | .succ _ => Or.inr (Nat.succ_le_succ (Nat.zero_le _))
---   | .succ n, h =>
---     match m, h with
---     | .zero, h => absurd h (Nat.not_succ_le_zero _)
---     | .succ m, h =>
---       have : LE.le n m := Nat.le_of_succ_le_succ h
---       match Nat.eq_or_lt_of_le this with
---       | Or.inl h => Or.inl (h ▸ rfl)
---       | Or.inr h => Or.inr (Nat.succ_le_succ h)
-
 def constOverrides : Std.HashMap Name Name := constOverrides'.foldl (init := default) fun acc (n, n') => acc.insert n n'
 
 -- def getOverrides (env : Environment) (overrides : Std.HashMap Name Name) : Std.HashMap Name ConstantInfo :=
@@ -188,22 +173,14 @@ def checkL4L (ns : Array Name) (env : Kernel.Environment) (printOutput := true) 
   let env := updateBaseAfterKernelAdd env env.toKernelEnv.toMap₁
   let ns := ns
   let nSet := ns.foldl (init := default) fun acc n => acc.insert n
-  -- unsafe replayFromEnv Lean4Lean.addDecl env.mainModule env.toMap₁ (op := "typecheck") (opts := {proofIrrelevance := false, kLikeReduction := false})
-
 
   let (_, checkEnv) ← checkConstants (printErr := true) env nSet Lean4Lean.addDecl (printProgress := printProgress) (opts := {proofIrrelevance := not opts.proofIrrelevance, kLikeReduction := not opts.kLikeReduction}) (interactive := interactive) (dbgOnly := false) (overrides := default) (deps := deps) (write := false)
 
-  -- let env' ← transL4L' ns env
-  -- for n in ns do
-  --   let .some c  := env.find? n | unreachable!
-  --   let .some c' := env'.find? n | unreachable!
-  --
-  --   let diffTypes := c.toConstantVal.type != c'.toConstantVal.type
-  --   let diffVals := c.value? != c'.value?
-  --   if diffTypes || diffVals then
-  --     throw $ IO.userError $ s!"failed round-trip test: \n--- LHS\n {← ppConst env n} \n--- RHS\n {← ppConst env' n}"
   pure checkEnv
 
+/--
+  Remove the definitial equalities specified in `opts` from `const`.
+-/
 def patchConst (const : Name) (opts : TypeCheckerOpts) :
     MetaM ConstantInfo := do
   let constInfo ← getConstInfo const
