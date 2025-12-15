@@ -4,7 +4,7 @@ open Lake DSL
 package lean4less where
   testDriver := "tests"
 
-require batteries from git "https://github.com/leanprover-community/batteries" @ "v4.26.0-rc2"
+require batteries from git "https://github.com/leanprover-community/batteries" @ "v4.27.0-rc1"
 require "leanprover-community" / "Qq" @ git "master"
 
 -- require lean4lean from "/home/rvaishna/projects/lean4lean/"
@@ -12,7 +12,7 @@ require "leanprover-community" / "Qq" @ git "master"
 require lean4lean from git "https://github.com/ericluap/lean4lean" @ "lean4less"
 
 require Cli from git
-  "https://github.com/leanprover/lean4-cli" @ "v4.26.0-rc2"
+  "https://github.com/leanprover/lean4-cli" @ "v4.27.0-rc1"
 
 @[default_target]
 lean_lib patch { globs := #[Glob.submodules `patch] }
