@@ -1,7 +1,11 @@
 import Lean
-import Lean4Less.Commands
-import Lean4Less.Ext
-open Lean Lean4Less
+import Lean4Less
+import Qq
+open Lean Lean4Less Qq
+
+/-!
+  Testing for patching iota reduction.
+-/
 
 /- Theorems for patching iota reduction -/
 
@@ -42,10 +46,32 @@ info: fun f t => f (L4L.castHEq (nat_iota_succ zero succ 0) t)
 #patch_const test2 (iotaReduction := iotaReduction) -kLikeReduction -proofIrrelevance
 
 /--
+info: fun f t => f (L4L.castHEq (nat_iota_succ zero succ 0) t)
+-/
+#guard_msgs in
+run_meta
+  let test2Expr := q(fun (f : Unit → False)
+    (t : Nat.rec (motive := motive) zero succ 1) => f t)
+  let opts : Lean4Less.TypeCheckerOpts := ⟨false, false, false, iotaReduction⟩
+  let res ← patchExpr test2Expr opts
+  Lean.logInfo m!"{res}"
+
+/--
 info: fun f t => f (L4L.castHEq (nat_iota_zero zero succ) t)
 -/
 #guard_msgs in
 #patch_const test3 (iotaReduction := iotaReduction) -kLikeReduction -proofIrrelevance
+
+/--
+info: fun f t => f (L4L.castHEq (nat_iota_zero zero succ) t)
+-/
+#guard_msgs in
+run_meta
+  let test2Expr := q(fun (f : Unit → False)
+    (t : Nat.rec (motive := motive) zero succ 0) => f t)
+  let opts : Lean4Less.TypeCheckerOpts := ⟨false, false, false, iotaReduction⟩
+  let res ← patchExpr test2Expr opts
+  Lean.logInfo m!"{res}"
 
 /--
 info: fun x x_1 x_2 =>

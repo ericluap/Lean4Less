@@ -187,7 +187,31 @@ def patchConst (const : Name) (opts : TypeCheckerOpts) :
   let patched := Kernel.Environment.patchDecl (← getEnv).toKernelEnv constInfo (opts := opts)
   match patched with
   | .ok res => return res
-  | .error e => throwError m!"failed patching with error {e.toMessageData {}}"
+  | .error e => throwError m!"failed patching with error: {e.toMessageData {}}"
+
+/--
+  Patch the given expression. An expected type can be optionally provided.
+-/
+def patchExpr (e : Expr) (opts : TypeCheckerOpts) (expectedType? := (none : Option Expr)) :
+    MetaM Expr := do
+  let expectedType := expectedType?.getD (←Meta.inferType e)
+  let constInfo : ConstantInfo := .thmInfo {
+    name := .anonymous
+    levelParams :=
+      let eParam := (Lean.collectLevelParams {} e).params.toList
+      let expectedTypeParams := (Lean.collectLevelParams {} expectedType).params.toList
+      eParam ++ expectedTypeParams
+    type := expectedType
+    value := e
+  }
+
+  let patched := Kernel.Environment.patchDecl (←getEnv).toKernelEnv constInfo (opts := opts)
+  match patched with
+  | .ok res =>
+    match res.value? with
+    | some patchedValue => return patchedValue
+    | none => throwError m!"failed patching, result has no value"
+  | .error e => throwError m!"failed patching with error: {e.toMessageData {}}"
 
 open Lean.Parser.Tactic
 declare_command_config_elab elabTypeCheckerOpts TypeCheckerOpts
