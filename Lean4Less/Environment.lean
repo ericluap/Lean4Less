@@ -161,7 +161,7 @@ def patchDecl (env : Kernel.Environment) (decl : ConstantInfo)
   | .defnInfo v => patchDefinition env v false opts
   | .thmInfo v => patchTheorem env v false opts
   | .opaqueInfo v => patchOpaque env v opts
-  | _ => throw <| .other s!"unsupported declaration kind in {decl.name}"
+  | _ => .ok decl
 
 /-- Type check given declaration and add it to the environment -/
 def addDecl' (env : Kernel.Environment) (decl : @& Declaration) (opts : TypeCheckerOpts := {}) (_allowAxiomReplace := false) :
