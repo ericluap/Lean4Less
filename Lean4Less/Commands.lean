@@ -197,10 +197,7 @@ def patchExpr (e : Expr) (opts : TypeCheckerOpts) (expectedType? := (none : Opti
   let expectedType := expectedType?.getD (←Meta.inferType e)
   let constInfo : ConstantInfo := .thmInfo {
     name := .anonymous
-    levelParams :=
-      let eParam := (Lean.collectLevelParams {} e).params.toList
-      let expectedTypeParams := (Lean.collectLevelParams {} expectedType).params.toList
-      eParam ++ expectedTypeParams
+    levelParams := (Lean.collectLevelParams {} e).params.toList
     type := expectedType
     value := e
   }
